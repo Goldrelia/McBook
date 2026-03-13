@@ -1,7 +1,13 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+const mysql = require('mysql2/promise');
+require('dotenv').config();
 
-const db = new Database(path.join(__dirname, 'comp307.db'));
-db.pragma('foreign_keys = ON');
+const pool = mysql.createPool({
+  host:     process.env.DB_HOST || 'localhost',
+  user:     process.env.DB_USER || 'cs307-user',
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME || 'comp307_booking',
+  waitForConnections: true,
+  connectionLimit: 10,
+});
 
-module.exports = db;
+module.exports = pool;
