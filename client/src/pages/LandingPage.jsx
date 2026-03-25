@@ -1,71 +1,20 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-// ── CSS injected once ──────────────────────────────────────────────
-const css = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&display=swap');
-
-  :root {
-    --red:       #e8192c;
-    --red-hover: #c9111f;
-    --red-light: rgba(232,25,44,0.09);
-  }
-
-  [data-theme="light"] {
-    --bg:      #eef0f4;
-    --surface: #ffffff;
-    --border:  #dde0e7;
-    --text:    #0f1623;
-    --text2:   #4a5568;
-    --text3:   #9aa3b0;
-  }
-
-  [data-theme="dark"] {
-    --bg:      #0d0f14;
-    --surface: #16181f;
-    --border:  rgba(255,255,255,0.08);
-    --text:    #e8eaed;
-    --text2:   #8892a0;
-    --text3:   #50586a;
-  }
-
-  html, body, #root {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-  }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    transition: background 0.2s, color 0.2s;
-  }
-
-  @keyframes mcFadeUp {
-    from { opacity: 0; transform: translateY(14px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .mc-anim-0 { animation: mcFadeUp 0.4s ease both; }
-  .mc-anim-1 { animation: mcFadeUp 0.4s 0.08s ease both; }
-  .mc-anim-2 { animation: mcFadeUp 0.4s 0.15s ease both; }
-`;
-
-// ── Suggestions data ───────────────────────────────────────────────
+// -- Suggestions data
 const ALL_SUGGESTIONS = [
-  { label: "Joseph P Vybihal", sub: "Professor · 3 active slots",   type: "person", path: "/slots?owner=vybihal" },
-  { label: "Derek Long",       sub: "Teaching Assistant · 2 slots", type: "person", path: "/slots?owner=derek" },
-  { label: "Sara Alami",       sub: "Teaching Assistant · 1 slot",  type: "person", path: "/slots?owner=sara" },
-  { label: "Office Hours",     sub: "Browse all office hour slots",  type: "slot",   path: "/slots?type=office_hours" },
-  { label: "Group Meetings",   sub: "Find group scheduling sessions",type: "slot",   path: "/slots?type=group" },
-  { label: "Meeting Requests", sub: "Request a one-on-one meeting",  type: "slot",   path: "/slots?type=request" },
+  { label: "Joseph P Vybihal", sub: "Professor · 3 active slots",    type: "person", path: "/slots?owner=vybihal" },
+  { label: "Derek Long",       sub: "Teaching Assistant · 2 slots",  type: "person", path: "/slots?owner=derek" },
+  { label: "Sara Alami",       sub: "Teaching Assistant · 1 slot",   type: "person", path: "/slots?owner=sara" },
+  { label: "Office Hours",     sub: "Browse all office hour slots",   type: "slot",   path: "/slots?type=office_hours" },
+  { label: "Group Meetings",   sub: "Find group scheduling sessions", type: "slot",   path: "/slots?type=group" },
+  { label: "Meeting Requests", sub: "Request a one-on-one meeting",   type: "slot",   path: "/slots?type=request" },
 ];
 
-// ── Icons ──────────────────────────────────────────────────────────
-const SearchIcon = ({ size = 17, color = "currentColor" }) => (
+// -- Icons
+const SearchIcon = ({ size = 17 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-    stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
   </svg>
 );
@@ -118,7 +67,7 @@ const LogoIcon = () => (
   </svg>
 );
 
-// ── Component ──────────────────────────────────────────────────────
+// -- LandingPage
 export default function LandingPage() {
   const navigate = useNavigate();
   const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
@@ -127,22 +76,11 @@ export default function LandingPage() {
   const inputRef = useRef(null);
   const dropRef  = useRef(null);
 
-  // Apply theme to <html>
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("mcbook-theme", theme);
   }, [theme]);
 
-  // Inject CSS once
-  useEffect(() => {
-    if (document.getElementById("mcbook-css")) return;
-    const tag = document.createElement("style");
-    tag.id = "mcbook-css";
-    tag.textContent = css;
-    document.head.appendChild(tag);
-  }, []);
-
-  // Close dropdown on outside click
   useEffect(() => {
     function handler(e) {
       if (!dropRef.current?.contains(e.target) && !inputRef.current?.contains(e.target)) {
@@ -175,21 +113,14 @@ export default function LandingPage() {
 
   return (
     <div style={{
-      display: "flex",
-      flexDirection: "column",
-      minHeight: "100vh",
-      background: "var(--bg)",
-      color: "var(--text)",
-      fontFamily: "'Inter', system-ui, sans-serif",
+      display: "flex", flexDirection: "column", minHeight: "100vh",
+      background: "var(--bg)", color: "var(--text)", fontFamily: "'Inter', system-ui, sans-serif",
     }}>
 
-      {/* ── TOP BAR ── */}
+      {/* Top bar */}
       <div style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "20px 28px",
-        flexShrink: 0,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "20px 28px", flexShrink: 0,
       }}>
         <button
           onClick={() => navigate("/")}
@@ -202,25 +133,14 @@ export default function LandingPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <button
             onClick={() => setTheme(t => t === "light" ? "dark" : "light")}
-            style={{
-              background: "none", border: "none", cursor: "pointer",
-              color: "var(--text2)", display: "flex", alignItems: "center",
-              padding: 4, borderRadius: 6, transition: "color 0.15s",
-            }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", display: "flex", alignItems: "center", padding: 4, borderRadius: 6 }}
             title="Toggle theme"
-            aria-label="Toggle theme"
           >
             {theme === "light" ? <MoonIcon /> : <SunIcon />}
           </button>
-
           <button
             onClick={() => navigate("/login")}
-            style={{
-              background: "none", border: "none", cursor: "pointer",
-              fontSize: 15, fontWeight: 600, color: "var(--text)",
-              fontFamily: "inherit", letterSpacing: "-0.01em",
-              padding: 0, transition: "color 0.15s",
-            }}
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 15, fontWeight: 600, color: "var(--text)", fontFamily: "inherit", letterSpacing: "-0.01em", padding: 0, transition: "color 0.15s" }}
             onMouseEnter={e => e.target.style.color = "var(--red)"}
             onMouseLeave={e => e.target.style.color = "var(--text)"}
           >
@@ -229,43 +149,32 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* ── HERO ── */}
+      {/* Hero */}
       <div style={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        textAlign: "center",
-        padding: "0 24px 120px",
+        flex: 1, display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        textAlign: "center", padding: "0 24px 120px",
       }}>
-
-        {/* Headline */}
         <h1
           className="mc-anim-0"
           style={{
             fontSize: "clamp(2.5rem, 6vw, 4.1rem)",
-            fontWeight: 900,
-            lineHeight: 1.08,
-            letterSpacing: "-0.04em",
-            color: "var(--text)",
-            maxWidth: 680,
-            marginBottom: 36,
+            fontWeight: 900, lineHeight: 1.08,
+            letterSpacing: "-0.04em", color: "var(--text)",
+            maxWidth: 680, marginBottom: 36,
           }}
         >
           Book time with your professors and TAs at McGill
         </h1>
 
-        {/* Search */}
+        {/* Search bar */}
         <div
           className="mc-anim-1"
           style={{ width: "100%", maxWidth: 680, position: "relative" }}
         >
           <div style={{
-            position: "absolute", left: 18, top: "50%",
-            transform: "translateY(-50%)",
-            color: "var(--text3)", pointerEvents: "none",
-            display: "flex", alignItems: "center",
+            position: "absolute", left: 18, top: "50%", transform: "translateY(-50%)",
+            color: "var(--text3)", pointerEvents: "none", display: "flex", alignItems: "center",
           }}>
             <SearchIcon size={17} />
           </div>
@@ -279,27 +188,16 @@ export default function LandingPage() {
             onFocus={() => setShowDrop(true)}
             onKeyDown={handleKeyDown}
             style={{
-              width: "100%",
-              height: 52,
+              width: "100%", height: 52,
               padding: "0 20px 0 50px",
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              borderRadius: 10,
-              fontSize: 15.5,
-              fontFamily: "inherit",
-              color: "var(--text)",
-              outline: "none",
+              background: "var(--surface)", border: "1px solid var(--border)",
+              borderRadius: 10, fontSize: 15.5, fontFamily: "inherit",
+              color: "var(--text)", outline: "none",
               boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
               transition: "border-color 0.15s, box-shadow 0.15s",
             }}
-            onFocusCapture={e => {
-              e.target.style.borderColor = "var(--red)";
-              e.target.style.boxShadow = "0 0 0 3px var(--red-light), 0 1px 3px rgba(0,0,0,0.06)";
-            }}
-            onBlurCapture={e => {
-              e.target.style.borderColor = "var(--border)";
-              e.target.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)";
-            }}
+            onFocusCapture={e => { e.target.style.borderColor = "var(--red)"; e.target.style.boxShadow = "0 0 0 3px var(--red-light), 0 1px 3px rgba(0,0,0,0.06)"; }}
+            onBlurCapture={e =>  { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)"; }}
           />
 
           {/* Dropdown */}
@@ -307,15 +205,10 @@ export default function LandingPage() {
             <div
               ref={dropRef}
               style={{
-                position: "absolute",
-                top: "calc(100% + 6px)",
-                left: 0, right: 0,
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderRadius: 10,
-                boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
-                overflow: "hidden",
-                zIndex: 50,
+                position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0,
+                background: "var(--surface)", border: "1px solid var(--border)",
+                borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
+                overflow: "hidden", zIndex: 50,
               }}
             >
               {filtered.map((s, i) => (
@@ -324,32 +217,12 @@ export default function LandingPage() {
             </div>
           )}
         </div>
-
-        {/* Explore link */}
-        <button
-          className="mc-anim-2"
-          onClick={() => navigate("/slots")}
-          style={{
-            marginTop: 22,
-            background: "none", border: "none", cursor: "pointer",
-            fontSize: 14.5, color: "var(--text2)",
-            fontFamily: "inherit", letterSpacing: "-0.01em",
-            textDecoration: "underline",
-            textDecorationColor: "var(--border)",
-            textUnderlineOffset: 3,
-            transition: "color 0.15s",
-          }}
-          onMouseEnter={e => { e.target.style.color = "var(--text)"; e.target.style.textDecorationColor = "var(--text2)"; }}
-          onMouseLeave={e => { e.target.style.color = "var(--text2)"; e.target.style.textDecorationColor = "var(--border)"; }}
-        >
-          or explore all slots →
-        </button>
       </div>
     </div>
   );
 }
 
-// ── Suggestion item sub-component ─────────────────────────────────
+// -- SuggestionItem
 function SuggestionItem({ item, onSelect }) {
   const [hovered, setHovered] = useState(false);
 
@@ -360,17 +233,14 @@ function SuggestionItem({ item, onSelect }) {
       onMouseDown={e => { e.preventDefault(); onSelect(); }}
       style={{
         display: "flex", alignItems: "center", gap: 12,
-        padding: "11px 18px",
-        cursor: "pointer",
+        padding: "11px 18px", cursor: "pointer",
         background: hovered ? "var(--bg)" : "transparent",
         borderBottom: "1px solid var(--border)",
         transition: "background 0.1s",
       }}
     >
       <div style={{
-        width: 28, height: 28,
-        background: "var(--red-light)",
-        borderRadius: 6,
+        width: 28, height: 28, background: "var(--red-light)", borderRadius: 6,
         display: "flex", alignItems: "center", justifyContent: "center",
         color: "var(--red)", flexShrink: 0,
       }}>
