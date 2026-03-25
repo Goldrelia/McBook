@@ -5,6 +5,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import LandingPage from './pages/LandingPage'
 import Dashboard from './pages/Dashboard'
+import OwnerDashboard from './pages/OwnerDashboard'
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/owner/dashboard" element={<OwnerDashboard />} />
       </Routes>
     </BrowserRouter>
   )
