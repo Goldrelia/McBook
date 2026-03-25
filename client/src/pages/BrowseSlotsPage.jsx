@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Card from "../components/Card";
 import Avatar from "../components/Avatar";
+import TimeDropdown from "../components/TimeDropdown";
 
-// -- Mock data (replace with GET /api/slots?type=office_hours&status=active)
+// -- Mock data
 const MOCK_OWNERS = [
   {
     id: 1,
@@ -13,9 +14,9 @@ const MOCK_OWNERS = [
     role: "Professor",
     department: "COMP",
     slots: [
-      { id: 101, day: "Monday",    time: "10:00am – 11:00am", location: "Trottier 3090",  weeks: 13, booked: false },
-      { id: 102, day: "Wednesday", time: "10:00am – 11:00am", location: "Trottier 3090",  weeks: 13, booked: false },
-      { id: 103, day: "Tuesday",   time: "2:00pm – 3:00pm",   location: "Online (Zoom)",  weeks: 13, booked: true  },
+      { id: 101, day: "Monday",    time: "10:00am – 11:00am", location: "Trottier 3090", weeks: 13, booked: false },
+      { id: 102, day: "Wednesday", time: "10:00am – 11:00am", location: "Trottier 3090", weeks: 13, booked: false },
+      { id: 103, day: "Tuesday",   time: "2:00pm – 3:00pm",   location: "Online (Zoom)", weeks: 13, booked: true  },
     ],
   },
   {
@@ -25,8 +26,8 @@ const MOCK_OWNERS = [
     role: "Teaching Assistant",
     department: "COMP",
     slots: [
-      { id: 201, day: "Friday",  time: "1:00pm – 2:00pm", location: "Online (Zoom)",   weeks: 8, booked: false },
-      { id: 202, day: "Tuesday", time: "3:00pm – 4:00pm", location: "Trottier 3120",   weeks: 8, booked: false },
+      { id: 201, day: "Friday",  time: "1:00pm – 2:00pm", location: "Online (Zoom)",  weeks: 8, booked: false },
+      { id: 202, day: "Tuesday", time: "3:00pm – 4:00pm", location: "Trottier 3120",  weeks: 8, booked: false },
     ],
   },
   {
@@ -49,27 +50,30 @@ const Icon = ({ d, size = 13 }) => (
   </svg>
 );
 
-const SearchIcon  = () => <Icon size={16} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />;
-const ClockIcon   = () => (
+const SearchIcon = () => <Icon size={16} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />;
+const ClockIcon  = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
   </svg>
 );
-const PinIcon     = () => <Icon d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0zM12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />;
-const CalIcon     = () => <Icon d="M3 4h18v18H3zM16 2v4M8 2v4M3 10h18" />;
-const RepeatIcon  = () => <Icon d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" />;
-const CheckIcon   = () => <Icon d="M20 6L9 17l-5-5" />;
-const XIcon       = () => <Icon d="M18 6L6 18M6 6l12 12" />;
-const ArrowLeft   = () => <Icon size={15} d="M19 12H5M12 5l-7 7 7 7" />;
+const PinIcon    = () => <Icon d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0zM12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />;
+const CalIcon    = () => <Icon d="M3 4h18v18H3zM16 2v4M8 2v4M3 10h18" />;
+const RepeatIcon = () => <Icon d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" />;
+const CheckIcon  = () => <Icon d="M20 6L9 17l-5-5" />;
+const XIcon      = () => <Icon d="M18 6L6 18M6 6l12 12" />;
+const MailIcon   = () => <Icon d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6" />;
 
 // -- BrowseSlotsPage
 export default function BrowseSlotsPage() {
-  const navigate  = useNavigate();
-  const [theme, setTheme]     = useState(() => localStorage.getItem("mcbook-theme") || "light");
-  const [query, setQuery]     = useState("");
-  const [owners, setOwners]   = useState(MOCK_OWNERS);
-  const [booking, setBooking] = useState(null); // { owner, slot }
-  const [booked, setBooked]   = useState(null); // confirmed booking
+  const navigate = useNavigate();
+  const [theme, setTheme]         = useState(() => localStorage.getItem("mcbook-theme") || "light");
+  const [query, setQuery]         = useState("");
+  const [owners, setOwners]       = useState(MOCK_OWNERS);
+  const [booking, setBooking]     = useState(null);
+  const [booked, setBooked]       = useState(null);
+  const [showRequest, setShowRequest] = useState(false);
+  const [requested, setRequested] = useState(null);
+  const [requestOwner, setRequestOwner] = useState(null);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -90,19 +94,27 @@ export default function BrowseSlotsPage() {
 
   function confirmReservation() {
     if (!booking) return;
-    // Mark slot as booked
     setOwners(prev => prev.map(o =>
       o.id === booking.owner.id
         ? { ...o, slots: o.slots.map(s => s.id === booking.slot.id ? { ...s, booked: true } : s) }
         : o
     ));
-    // Send mailto notification to owner
     const subject = encodeURIComponent(`Office Hours Booking: ${booking.slot.day} ${booking.slot.time}`);
-    const body = encodeURIComponent(`Hi ${booking.owner.name.split(" ")[0]},\n\nI have reserved your office hours slot on ${booking.slot.day} at ${booking.slot.time} (${booking.slot.location}).\n\nPlease let me know if this works.\n\nBest regards`);
+    const body = encodeURIComponent(`Hi ${booking.owner.name.split(" ")[0]},\n\nI have reserved your office hours slot on ${booking.slot.day} at ${booking.slot.time} (${booking.slot.location}).\n\nBest regards`);
     window.open(`mailto:${booking.owner.email}?subject=${subject}&body=${body}`);
     setBooked(booking);
     setBooking(null);
-    // TODO: POST /api/bookings { slot_id, user_id }
+    // TODO: POST /api/bookings
+  }
+
+  function submitRequest(form) {
+    const owner = owners.find(o => o.id === parseInt(form.ownerId));
+    const subject = encodeURIComponent(`Meeting Request: ${form.title}`);
+    const body = encodeURIComponent(`Hi ${owner.name.split(" ")[0]},\n\nI'd like to request a meeting.\n\nTitle: ${form.title}\nDate: ${form.date}\nTime: ${form.time_start} – ${form.time_end}\n\nMessage:\n${form.message}\n\nBest regards`);
+    window.open(`mailto:${owner.email}?subject=${subject}&body=${body}`);
+    setRequested(owner);
+    setShowRequest(false);
+    // TODO: POST /api/meeting-requests
   }
 
   return (
@@ -121,30 +133,52 @@ export default function BrowseSlotsPage() {
 
         {/* Header */}
         <div className="mc-fade" style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: "1.75rem", fontWeight: 800, letterSpacing: "-0.03em", color: "var(--text)", marginBottom: 4 }}>
-            Browse Office Hours
-          </h1>
-          <p style={{ fontSize: 13.5, color: "var(--text3)" }}>
-            Search for a professor or TA and reserve an available slot directly.
-          </p>
+          <div>
+            <div>
+              <h1 style={{ fontSize: "1.75rem", fontWeight: 800, letterSpacing: "-0.03em", color: "var(--text)", marginBottom: 4 }}>
+                Book a Slot
+              </h1>
+              <p style={{ fontSize: 13.5, color: "var(--text3)" }}>
+                Browse available office hours or request a custom meeting.
+              </p>
+            </div>
+
+          </div>
         </div>
 
-        {/* Success banner */}
+        {/* Success banners */}
         {booked && (
           <div className="mc-fade" style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 9, marginBottom: 20, fontSize: 13.5 }}>
             <span style={{ color: "#10b981", display: "flex" }}><CheckIcon /></span>
             <span style={{ color: "var(--text)" }}>
               Booked <strong>{booked.slot.day} at {booked.slot.time}</strong> with <strong>{booked.owner.name}</strong>. A notification email has been sent.
             </span>
-            <button onClick={() => setBooked(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--text3)", display: "flex", alignItems: "center" }}>
+            <button onClick={() => setBooked(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--text3)", display: "flex" }}>
               <XIcon />
             </button>
           </div>
         )}
 
+        {requested && (
+          <div className="mc-fade" style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.25)", borderRadius: 9, marginBottom: 20, fontSize: 13.5 }}>
+            <span style={{ color: "#3b82f6", display: "flex" }}><MailIcon /></span>
+            <span style={{ color: "var(--text)" }}>
+              Meeting request sent to <strong>{requested.name}</strong>. You'll be notified when they respond.
+            </span>
+            <button onClick={() => setRequested(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--text3)", display: "flex" }}>
+              <XIcon />
+            </button>
+          </div>
+        )}
+
+        {/* Section label */}
+        <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text3)", marginBottom: 12 }}>
+          Available Office Hours
+        </div>
+
         {/* Search */}
-        <div style={{ position: "relative", marginBottom: 24 }}>
-          <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text3)", display: "flex", alignItems: "center", pointerEvents: "none" }}>
+        <div style={{ position: "relative", marginBottom: 20 }}>
+          <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text3)", display: "flex", pointerEvents: "none" }}>
             <SearchIcon />
           </div>
           <input
@@ -169,12 +203,12 @@ export default function BrowseSlotsPage() {
               owner={owner}
               delay={i * 0.05}
               onReserve={slot => handleReserve(owner, slot)}
+              onRequest={() => { setShowRequest(true); setRequestOwner(owner); }}
             />
           ))
         )}
       </div>
 
-      {/* Reservation confirm modal */}
       {booking && (
         <ReserveModal
           owner={booking.owner}
@@ -183,43 +217,64 @@ export default function BrowseSlotsPage() {
           onClose={() => setBooking(null)}
         />
       )}
+
+      {showRequest && (
+        <RequestMeetingModal
+          owners={owners}
+          preselectedOwner={requestOwner}
+          onClose={() => { setShowRequest(false); setRequestOwner(null); }}
+          onSubmit={submitRequest}
+        />
+      )}
     </div>
   );
 }
 
 // -- Owner Card
-function OwnerCard({ owner, delay, onReserve }) {
-  const [hov, setHov] = useState(false);
+function OwnerCard({ owner, delay, onReserve, onRequest }) {
   const available = owner.slots.filter(s => !s.booked);
-  const booked    = owner.slots.filter(s => s.booked);
+  const [reqHov, setReqHov] = useState(false);
 
   return (
     <div
       className="mc-fade"
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
       style={{
         background: "var(--surface)",
-        border: `1px solid ${hov ? "rgba(232,25,44,0.25)" : "var(--border)"}`,
+        border: "1px solid var(--border)",
         borderRadius: 10, padding: "18px 20px", marginBottom: 14,
-        boxShadow: hov ? "0 0 0 3px rgba(232,25,44,0.06), var(--shadow-sm)" : "var(--shadow-sm)",
-        transition: "border-color 0.15s, box-shadow 0.15s",
+        boxShadow: "var(--shadow-sm)",
         animationDelay: `${delay}s`,
       }}
     >
-      {/* Owner header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
         <Avatar name={owner.name} size={40} />
         <div>
           <div style={{ fontSize: 14.5, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.01em" }}>{owner.name}</div>
           <div style={{ fontSize: 12.5, color: "var(--text3)" }}>{owner.role} · {owner.department}</div>
         </div>
-        <div style={{ marginLeft: "auto", fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 5, background: available.length > 0 ? "rgba(16,185,129,0.1)" : "rgba(156,163,175,0.1)", color: available.length > 0 ? "#10b981" : "var(--text3)" }}>
-          {available.length} slot{available.length !== 1 ? "s" : ""} available
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 5, background: available.length > 0 ? "rgba(16,185,129,0.1)" : "rgba(156,163,175,0.1)", color: available.length > 0 ? "#10b981" : "var(--text3)" }}>
+            {available.length} slot{available.length !== 1 ? "s" : ""} available
+          </div>
+          <button
+            onClick={onRequest}
+            onMouseEnter={() => setReqHov(true)}
+            onMouseLeave={() => setReqHov(false)}
+            style={{
+              display: "flex", alignItems: "center", gap: 5,
+              padding: "3px 10px", borderRadius: 5,
+              fontSize: 12, fontWeight: 600, fontFamily: "inherit", cursor: "pointer",
+              background: reqHov ? "rgba(232,25,44,0.08)" : "transparent",
+              color: reqHov ? "var(--red)" : "var(--text3)",
+              border: "1px solid " + (reqHov ? "rgba(232,25,44,0.3)" : "var(--border)"),
+              transition: "all 0.15s",
+            }}
+          >
+            <MailIcon /> Request
+          </button>
         </div>
       </div>
 
-      {/* Slots */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {owner.slots.map(slot => (
           <SlotRow key={slot.id} slot={slot} onReserve={() => onReserve(slot)} />
@@ -231,21 +286,22 @@ function OwnerCard({ owner, delay, onReserve }) {
 
 // -- Slot Row
 function SlotRow({ slot, onReserve }) {
-  const [hov, setHov] = useState(false);
+  const [btnHov, setBtnHov] = useState(false);
+  const [rowHov, setRowHov] = useState(false);
 
   return (
-    <div style={{
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      padding: "10px 12px",
-      background: slot.booked ? "var(--surface2)" : hov ? "rgba(232,25,44,0.03)" : "var(--surface2)",
-      border: `1px solid ${slot.booked ? "var(--border)" : hov ? "rgba(232,25,44,0.2)" : "var(--border)"}`,
-      borderRadius: 8,
-      transition: "all 0.15s",
-      opacity: slot.booked ? 0.6 : 1,
-    }}
-    onMouseEnter={() => setHov(true)}
-    onMouseLeave={() => setHov(false)}
-    >
+    <div
+      onMouseEnter={() => setRowHov(true)}
+      onMouseLeave={() => setRowHov(false)}
+      style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "10px 12px",
+        background: !slot.booked && rowHov ? "rgba(232,25,44,0.03)" : "var(--surface2)",
+        border: "1px solid " + (!slot.booked && rowHov ? "rgba(232,25,44,0.18)" : "var(--border)"),
+        borderRadius: 8,
+        opacity: slot.booked ? 0.55 : 1,
+        transition: "background 0.15s, border-color 0.15s",
+      }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px" }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
           <CalIcon /> {slot.day}
@@ -266,13 +322,15 @@ function SlotRow({ slot, onReserve }) {
       ) : (
         <button
           onClick={onReserve}
+          onMouseEnter={() => setBtnHov(true)}
+          onMouseLeave={() => setBtnHov(false)}
           style={{
-            padding: "5px 14px", borderRadius: 6,
-            background: hov ? "var(--red)" : "transparent",
-            color: hov ? "#fff" : "var(--red)",
-            border: "1px solid " + (hov ? "var(--red)" : "rgba(232,25,44,0.3)"),
+            padding: "5px 14px", borderRadius: 6, flexShrink: 0,
+            background: btnHov ? "var(--red)" : "transparent",
+            color: btnHov ? "#fff" : "var(--red)",
+            border: "1px solid " + (btnHov ? "var(--red)" : "rgba(232,25,44,0.35)"),
             fontSize: 12, fontWeight: 600, fontFamily: "inherit",
-            cursor: "pointer", transition: "all 0.15s", flexShrink: 0,
+            cursor: "pointer", transition: "all 0.15s",
           }}
         >
           Reserve
@@ -285,15 +343,10 @@ function SlotRow({ slot, onReserve }) {
 // -- Reserve Confirm Modal
 function ReserveModal({ owner, slot, onConfirm, onClose }) {
   return (
-    <div
-      onClick={onClose}
-      style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        className="mc-fade"
-        style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: 28, width: "100%", maxWidth: 400, boxSizing: "border-box", boxShadow: "0 24px 64px rgba(0,0,0,0.18)" }}
-      >
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+      <div onClick={e => e.stopPropagation()} className="mc-fade"
+        style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: 28, width: "100%", maxWidth: 400, boxSizing: "border-box", boxShadow: "0 24px 64px rgba(0,0,0,0.18)" }}>
+
         <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text)", letterSpacing: "-0.02em", marginBottom: 4 }}>Confirm reservation</div>
         <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 20 }}>You're about to reserve this office hours slot.</div>
 
@@ -313,8 +366,7 @@ function ReserveModal({ owner, slot, onConfirm, onClose }) {
             { icon: <RepeatIcon />, label: `Repeats for ${slot.weeks} weeks` },
           ].map((row, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: "var(--text2)" }}>
-              <span style={{ color: "var(--text3)" }}>{row.icon}</span>
-              {row.label}
+              <span style={{ color: "var(--text3)" }}>{row.icon}</span> {row.label}
             </div>
           ))}
         </div>
@@ -330,6 +382,95 @@ function ReserveModal({ owner, slot, onConfirm, onClose }) {
           <button onClick={onConfirm} style={{ padding: "7px 14px", borderRadius: 7, border: "none", background: "var(--red)", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
             <CheckIcon /> Confirm booking
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// -- Request Meeting Modal
+function RequestMeetingModal({ owners, preselectedOwner, onClose, onSubmit }) {
+  const [form, setForm] = useState({ ownerId: String(preselectedOwner?.id || owners[0]?.id || ""), title: "", date: "", time_start: "", time_end: "", message: "" });
+  function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
+  const isValid = form.ownerId && form.title && form.date && form.time_start && form.time_end && form.message.trim();
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+      <div onClick={e => e.stopPropagation()} className="mc-fade"
+        style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: 28, width: "100%", maxWidth: 460, boxSizing: "border-box", boxShadow: "0 24px 64px rgba(0,0,0,0.18)" }}>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text)", letterSpacing: "-0.02em" }}>Request a meeting</div>
+            <div style={{ fontSize: 12.5, color: "var(--text3)", marginTop: 2 }}>Send a one-on-one meeting request to a professor or TA.</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text3)", display: "flex", padding: 4 }}>
+            <XIcon />
+          </button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <label className="mc-label">Send to *</label>
+            <select
+              value={form.ownerId}
+              onChange={e => set("ownerId", e.target.value)}
+              className="mc-input"
+              style={{ cursor: "pointer", appearance: "none" }}
+            >
+              {owners.map(o => (
+                <option key={o.id} value={o.id}>{o.name} — {o.role}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mc-label">Meeting title *</label>
+            <input className="mc-input" placeholder="e.g. Assignment 3 Help" value={form.title} onChange={e => set("title", e.target.value)} />
+          </div>
+
+          <div>
+            <label className="mc-label">Preferred date &amp; time *</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", padding: "8px 12px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8 }}>
+              <input
+                type="date"
+                value={form.date}
+                onChange={e => set("date", e.target.value)}
+                style={{ padding: "5px 10px", background: form.date ? "rgba(26,115,232,0.1)" : "var(--surface)", border: "1px solid " + (form.date ? "rgba(26,115,232,0.35)" : "var(--border)"), borderRadius: 6, fontSize: 13.5, fontFamily: "inherit", color: form.date ? "#1a73e8" : "var(--text3)", fontWeight: 500, cursor: "pointer", outline: "none" }}
+              />
+              <TimeDropdown value={form.time_start} onChange={v => set("time_start", v)} placeholder="Start" />
+              <span style={{ color: "var(--text3)", fontSize: 13 }}>–</span>
+              <TimeDropdown value={form.time_end} onChange={v => set("time_end", v)} placeholder="End" />
+            </div>
+          </div>
+
+          <div>
+            <label className="mc-label">Message *</label>
+            <textarea
+              className="mc-input"
+              placeholder="Briefly describe what you'd like to discuss…"
+              rows={3}
+              value={form.message}
+              onChange={e => set("message", e.target.value)}
+              style={{ resize: "vertical", minHeight: 80 }}
+            />
+          </div>
+
+          <div style={{ padding: 12, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12.5, color: "var(--text3)", lineHeight: 1.6 }}>
+            💡 The professor or TA will receive your request and accept or decline. You'll be notified by email.
+          </div>
+
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button onClick={onClose} style={{ padding: "7px 14px", borderRadius: 7, border: "1px solid var(--border)", background: "transparent", color: "var(--text2)", fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>
+              Cancel
+            </button>
+            <button
+              onClick={() => { if (isValid) onSubmit(form); }}
+              style={{ padding: "7px 14px", borderRadius: 7, border: "none", background: "var(--red)", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: isValid ? "pointer" : "not-allowed", opacity: isValid ? 1 : 0.5, display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <MailIcon /> Send request
+            </button>
+          </div>
         </div>
       </div>
     </div>
