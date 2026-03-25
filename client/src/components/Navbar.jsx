@@ -33,11 +33,11 @@ const LogoIcon = ({ size = 26 }) => (
 // Props:
 //   theme       — "light" | "dark"
 //   onToggle    — function to toggle theme
-//   title       — page title shown after the divider (optional)
-//   actions     — array of { label, onClick, variant } (optional)
+//   navLinks    — array of { label, onClick, active? } shown as center nav links (optional)
+//   actions     — array of { label, onClick, variant } shown on the right (optional)
 //   transparent — boolean; when true renders a borderless, background-free nav
 //                 intended for the landing page
-export default function Navbar({ theme, onToggle, title, actions = [], transparent = false }) {
+export default function Navbar({ theme, onToggle, navLinks = [], actions = [], transparent = false }) {
   const navigate = useNavigate();
 
   const navStyle = transparent
@@ -51,9 +51,9 @@ export default function Navbar({ theme, onToggle, title, actions = [], transpare
       }
     : {
         position: "sticky", top: 0, zIndex: 100,
-        height: 52,
+        height: 64,
         display: "flex", alignItems: "center",
-        padding: "0 24px",
+        padding: "0 28px",
         background: theme === "light" ? "rgba(238,240,244,0.92)" : "rgba(13,15,20,0.88)",
         backdropFilter: "blur(14px)",
         borderBottom: "1px solid var(--border)",
@@ -62,31 +62,32 @@ export default function Navbar({ theme, onToggle, title, actions = [], transpare
 
   return (
     <nav style={navStyle}>
+      {/* Logo + wordmark */}
       <button
         onClick={() => navigate("/")}
         style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}
         aria-label="Home"
       >
-        <LogoIcon size={transparent ? 34 : 26} />
+        <LogoIcon size={34} />
       </button>
 
-      <span style={{
-        fontSize: transparent ? 16 : 14,
-        fontWeight: 700,
-        color: "var(--text)",
-        letterSpacing: "-0.02em",
-      }}>
+      <span style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em" }}>
         McBook
       </span>
 
-      {title && !transparent && (
-        <>
-          <span style={{ color: "var(--border)", fontSize: 18, margin: "0 2px" }}>|</span>
-          <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text2)" }}>{title}</span>
-        </>
+      {/* Center nav links */}
+      {navLinks.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 20 }}>
+          {navLinks.map((link, i) => (
+            <NavLink key={i} onClick={link.onClick} active={link.active}>
+              {link.label}
+            </NavLink>
+          ))}
+        </div>
       )}
 
-      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: transparent ? 16 : 8 }}>
+      {/* Right — theme toggle + action buttons */}
+      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
         <button
           onClick={onToggle}
           style={{
@@ -109,25 +110,53 @@ export default function Navbar({ theme, onToggle, title, actions = [], transpare
   );
 }
 
+// -- NavLink: center navigation items (Dashboard, About Us, etc.)
+function NavLink({ children, onClick, active = false }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        background: "none",
+        border: "none",
+        borderBottom: active || hov ? "2px solid var(--red)" : "2px solid transparent",
+        cursor: "pointer",
+        fontFamily: "inherit",
+        fontWeight: active ? 700 : 500,
+        fontSize: 15,
+        color: active || hov ? "var(--text)" : "var(--text2)",
+        padding: "4px 10px",
+        borderRadius: active || hov ? "6px 6px 0 0" : 6,
+        transition: "color 0.15s, border-color 0.15s",
+        letterSpacing: active ? "-0.01em" : "normal",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 function NavBtn({ children, variant, onClick }) {
   const [hov, setHov] = useState(false);
 
   const styles = {
     red: {
       background: "var(--red)", color: "#fff", border: "none",
-      padding: "6px 13px", borderRadius: 7, fontSize: 12.5,
+      padding: "6px 13px", borderRadius: 7, fontSize: 15,
     },
     outline: {
       background: "transparent",
       color: hov ? "var(--text)" : "var(--text2)",
       border: "1px solid var(--border)",
-      padding: "6px 13px", borderRadius: 7, fontSize: 12.5,
+      padding: "6px 13px", borderRadius: 7, fontSize: 15,
     },
-    // Plain text button — used on the landing page for "Log in →"
+    // Plain text button — used on the landing page for "Log in ->"
     ghost: {
       background: "none", border: "none",
       color: hov ? "var(--red)" : "var(--text)",
-      padding: "4px 0", fontSize: 15,
+      padding: "6px 13px", fontSize: 15,
     },
   };
 
