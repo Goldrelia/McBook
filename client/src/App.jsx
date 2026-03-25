@@ -1,11 +1,14 @@
-// Author: Aurelia Bouliane - 261118164
+// Authors: 
+// Aurelia Bouliane - 261118164
+// Houman Azari - 261055604
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import LandingPage from './pages/LandingPage'
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* routes will go here */}
+        <Route path="/" element={<LandingPage />} />
       </Routes>
     </BrowserRouter>
   )
