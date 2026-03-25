@@ -93,7 +93,7 @@ const css = `
   .mc-label { font-size:12px; font-weight:600; color:var(--text2); margin-bottom:5px; display:block; letter-spacing:0.01em; }
 `;
 
-// ── Icons ──────────────────────────────────────────────────────────
+// -- Icons 
 const Icon = ({ d, size = 13 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
     stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
