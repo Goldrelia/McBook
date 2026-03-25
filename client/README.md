@@ -1,16 +1,40 @@
-# React + Vite
+# McBook — Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend for the McBook McGill booking platform, built with React + Vite.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **React 19** — UI framework
+- **Vite** — build tool and dev server
+- **React Router DOM** — client-side routing
 
-## React Compiler
+## Getting Started
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm install
+npm run dev
+```
 
-## Expanding the ESLint configuration
+App runs at `http://localhost:5173`.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Available Scripts
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start development server |
+| `npm run build` | Build for production |
+| `npm run preview` | Preview production build |
+
+## Pages
+
+| Route | Page | Description |
+|---|---|---|
+| `/` | LandingPage | Search and entry point |
+| `/dashboard` | Dashboard | Student appointment management |
+| `/owner/dashboard` | OwnerDashboard | Professor/TA slot management |
+| `/login` | LoginPage | Authentication |
+| `/register` | RegisterPage | Account creation |
+
+## Theming
+
+Light and dark mode are supported via `data-theme` on the `<html>` element. Theme preference is persisted in `localStorage` under the key `mcbook-theme`. All colors use CSS variables defined in `index.css`.
