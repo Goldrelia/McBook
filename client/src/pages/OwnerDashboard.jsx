@@ -1,7 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import Navbar from "../components/Navbar";
+import Btn from "../components/Btn";
+import Card from "../components/Card";
+import Avatar from "../components/Avatar";
+import TimeDropdown from "../components/TimeDropdown";
 
-// -- Mock data 
+// -- Mock data
 const MOCK_SLOTS = [
   {
     id: 1,
@@ -61,39 +66,7 @@ const MOCK_REQUESTS = [
   },
 ];
 
-// -- CSS 
-const css = `
-  * { box-sizing: border-box; }
-  @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&display=swap');
-  :root { --red: #e8192c; --red-hover: #c9111f; --red-light: rgba(232,25,44,0.09); }
-  [data-theme="light"] {
-    --bg: #eef0f4; --surface: #fff; --surface2: #f8f9fb;
-    --border: #dde0e7; --text: #0f1623; --text2: #4a5568; --text3: #9aa3b0;
-    --shadow: 0 1px 3px rgba(0,0,0,0.07),0 4px 12px rgba(0,0,0,0.04);
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  }
-  [data-theme="dark"] {
-    --bg: #0d0f14; --surface: #16181f; --surface2: #1e2028;
-    --border: rgba(255,255,255,0.08); --text: #e8eaed; --text2: #8892a0; --text3: #50586a;
-    --shadow: 0 1px 3px rgba(0,0,0,0.4),0 4px 12px rgba(0,0,0,0.25);
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-  }
-  html,body,#root { height:100%; margin:0; padding:0; }
-  body { background:var(--bg); color:var(--text); font-family:'Inter',system-ui,sans-serif; transition:background 0.2s,color 0.2s; }
-  @keyframes mcFadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-  .mc-fade { animation: mcFadeUp 0.35s ease both; }
-  .mc-input {
-    width:100%; padding:9px 12px;
-    background:var(--surface2); border:1px solid var(--border); border-radius:7px;
-    font-size:13.5px; font-family:inherit; color:var(--text); outline:none;
-    transition:border-color 0.15s,box-shadow 0.15s;
-  }
-  .mc-input:focus { border-color:var(--red); box-shadow:0 0 0 3px var(--red-light); }
-  .mc-input::placeholder { color:var(--text3); }
-  .mc-label { font-size:12px; font-weight:600; color:var(--text2); margin-bottom:5px; display:block; letter-spacing:0.01em; }
-`;
-
-// -- Icons 
+// -- Icons
 const Icon = ({ d, size = 13 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
     stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
@@ -110,80 +83,8 @@ const XIcon      = () => <Icon d="M18 6L6 18M6 6l12 12" />;
 const EyeIcon    = () => <Icon d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />;
 const EyeOffIcon = () => <Icon d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24M1 1l22 22" />;
 const LogOutIcon = () => <Icon size={14} d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />;
-const MoonIcon   = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-  </svg>
-);
-const SunIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="5"/>
-    <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-  </svg>
-);
 
-// -- Helpers 
-function initials(name) {
-  return name.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
-}
-const AVATAR_COLORS = ["#e8192c", "#3b82f6", "#10b981", "#8b5cf6", "#f59e0b"];
-function avatarColor(name) {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-}
-
-function generateTimeOptions() {
-  const times = [];
-  for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += 15) {
-      const period = h < 12 ? "am" : "pm";
-      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-      const mm = String(m).padStart(2, "0");
-      times.push(`${h12}:${mm}${period}`);
-    }
-  }
-  return times;
-}
-
-// ── Shared UI ──────────────────────────────────────────────────────
-function Btn({ children, variant = "red", onClick, style = {}, ...props }) {
-  const [hov, setHov] = useState(false);
-  const base = {
-    display: "inline-flex", alignItems: "center", gap: 5,
-    padding: "6px 13px", borderRadius: 7, border: "none",
-    fontSize: 12.5, fontWeight: 600, fontFamily: "inherit",
-    cursor: "pointer", transition: "all 0.15s", ...style,
-  };
-  const variants = {
-    red:     { background: hov ? "var(--red-hover)" : "var(--red)", color: "#fff", border: "none" },
-    outline: { background: "transparent", color: hov ? "var(--text)" : "var(--text2)", border: "1px solid " + (hov ? "var(--text3)" : "var(--border)") },
-    green:   { background: hov ? "#059669" : "#10b981", color: "#fff", border: "none" },
-    danger:  { background: "transparent", color: hov ? "var(--red)" : "var(--text2)", border: "1px solid " + (hov ? "rgba(232,25,44,0.4)" : "var(--border)") },
-  };
-  return (
-    <button {...props} onClick={onClick}
-      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{ ...base, ...variants[variant] }}>
-      {children}
-    </button>
-  );
-}
-
-function Card({ children, style = {} }) {
-  return (
-    <div style={{
-      background: "var(--surface)", border: "1px solid var(--border)",
-      borderRadius: 10, padding: 18, boxShadow: "var(--shadow-sm)", ...style,
-    }}>
-      {children}
-    </div>
-  );
-}
-
+// -- SectionTitle
 function SectionTitle({ children }) {
   return (
     <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)", marginBottom: 12, letterSpacing: "-0.01em" }}>
@@ -192,104 +93,13 @@ function SectionTitle({ children }) {
   );
 }
 
-function TimeDropdown({ value, onChange, placeholder = "Time" }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  const listRef = useRef(null);
-  const times = generateTimeOptions();
-
-  useEffect(() => {
-    function handler(e) {
-      if (!ref.current?.contains(e.target)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  useEffect(() => {
-    if (open && listRef.current && value) {
-      const idx = times.indexOf(value);
-      if (idx !== -1) {
-        const item = listRef.current.children[idx];
-        if (item) item.scrollIntoView({ block: "center" });
-      }
-    }
-  }, [open]);
-
-  return (
-    <div ref={ref} style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        style={{
-          padding: "5px 12px",
-          background: value ? "rgba(26,115,232,0.1)" : "var(--surface)",
-          border: "1px solid " + (open ? "rgba(26,115,232,0.5)" : value ? "rgba(26,115,232,0.35)" : "var(--border)"),
-          borderRadius: 6, fontSize: 13.5, fontFamily: "inherit",
-          color: value ? "#1a73e8" : "var(--text3)",
-          fontWeight: 500, cursor: "pointer", outline: "none",
-          transition: "all 0.15s", whiteSpace: "nowrap",
-          boxShadow: open ? "0 0 0 3px rgba(26,115,232,0.15)" : "none",
-        }}
-      >
-        {value || placeholder}
-      </button>
-
-      {open && (
-        <div
-          ref={listRef}
-          style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            left: 0,
-            zIndex: 9999,
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: 8,
-            boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-            width: 150,
-            maxHeight: 225,
-            overflowY: "auto",
-            padding: "4px 0",
-          }}
-        >
-          {times.map(t => {
-            const selected = t === value;
-            return (
-              <div
-                key={t}
-                onMouseDown={() => { onChange(t); setOpen(false); }}
-                style={{
-                  padding: "9px 16px",
-                  fontSize: 13.5,
-                  color: selected ? "#1a73e8" : "var(--text)",
-                  background: selected ? "rgba(26,115,232,0.08)" : "transparent",
-                  cursor: "pointer",
-                  display: "flex", alignItems: "center", gap: 10,
-                }}
-                onMouseEnter={e => { if (!selected) e.currentTarget.style.background = "var(--surface2)"; }}
-                onMouseLeave={e => { if (!selected) e.currentTarget.style.background = "transparent"; }}
-              >
-                <span style={{ width: 14, fontSize: 12, color: "#1a73e8" }}>
-                  {selected ? "✓" : ""}
-                </span>
-                {t}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// -- Tab config 
+// -- Tab config
 const TABS = [
   { key: "slots",    label: "My Slots" },
   { key: "requests", label: "Meeting Requests" },
 ];
 
-// -- Main Component 
+// -- Main Component
 export default function OwnerDashboard() {
   const navigate = useNavigate();
   const [theme, setTheme]           = useState(() => localStorage.getItem("mcbook-theme") || "light");
@@ -305,18 +115,11 @@ export default function OwnerDashboard() {
     localStorage.setItem("mcbook-theme", theme);
   }, [theme]);
 
-  useEffect(() => {
-    if (document.getElementById("mcbook-css")) return;
-    const tag = document.createElement("style");
-    tag.id = "mcbook-css";
-    tag.textContent = css;
-    document.head.appendChild(tag);
-  }, []);
-
   function toggleStatus(id) {
     setSlots(prev => prev.map(s =>
       s.id === id ? { ...s, status: s.status === "active" ? "private" : "active" } : s
     ));
+    // TODO: PATCH /api/slots/:id { status }
   }
 
   function deleteSlot(id) {
@@ -326,6 +129,7 @@ export default function OwnerDashboard() {
     });
     setSlots(prev => prev.filter(s => s.id !== id));
     setDeleteSlotId(null);
+    // TODO: DELETE /api/slots/:id
   }
 
   function copyInviteLink(token) {
@@ -340,12 +144,15 @@ export default function OwnerDashboard() {
     const req = requests.find(r => r.id === id);
     if (action === "accepted") {
       window.open(`mailto:${req.email}?subject=Meeting Request Accepted&body=Hi ${req.user.split(" ")[0]},%0A%0AYour meeting request has been accepted. I will follow up with a confirmed time shortly.%0A%0ABest regards`);
+      // TODO: POST /api/slots + POST /api/bookings
     }
+    // TODO: PATCH /api/meeting-requests/:id { status }
   }
 
   function addSlot(slot) {
     setSlots(prev => [...prev, { ...slot, id: Date.now(), bookings: [], invite_token: Math.random().toString(36).slice(2, 10) }]);
     setShowCreate(false);
+    // TODO: POST /api/slots
   }
 
   const pendingCount = requests.filter(r => r.status === "pending").length;
@@ -353,39 +160,16 @@ export default function OwnerDashboard() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "'Inter', system-ui, sans-serif" }}>
 
-      {/* ── NAVBAR ── */}
-      <nav style={{
-        position: "sticky", top: 0, zIndex: 100, height: 52,
-        display: "flex", alignItems: "center", padding: "0 24px",
-        background: theme === "light" ? "rgba(238,240,244,0.92)" : "rgba(13,15,20,0.88)",
-        backdropFilter: "blur(14px)", borderBottom: "1px solid var(--border)", gap: 12,
-      }}>
-        <button onClick={() => navigate("/")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}>
-          <svg width="26" height="26" viewBox="0 0 42 42" fill="none">
-            <circle cx="17" cy="17" r="10" stroke="#e8192c" strokeWidth="3.2"/>
-            <line x1="24.5" y1="24.5" x2="34" y2="34" stroke="#e8192c" strokeWidth="3.2" strokeLinecap="round"/>
-            <line x1="31" y1="37" x2="36" y2="32" stroke="#e8192c" strokeWidth="3.2" strokeLinecap="round"/>
-          </svg>
-        </button>
-        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em" }}>McBook</span>
-        <span style={{ color: "var(--border)", fontSize: 18, margin: "0 2px" }}>|</span>
-        <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text2)" }}>Owner Dashboard</span>
+      <Navbar
+        theme={theme}
+        onToggle={() => setTheme(t => t === "light" ? "dark" : "light")}
+        title="Owner Dashboard"
+        actions={[
+          { label: "+ New slot", variant: "red",     onClick: () => setShowCreate(true) },
+          { label: "Log out",    variant: "outline",  onClick: () => { localStorage.removeItem("mcbook-token"); navigate("/login"); } },
+        ]}
+      />
 
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-          <button
-            onClick={() => setTheme(t => t === "light" ? "dark" : "light")}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", display: "flex", alignItems: "center", padding: 4, borderRadius: 6 }}
-          >
-            {theme === "light" ? <MoonIcon /> : <SunIcon />}
-          </button>
-          <Btn variant="red" onClick={() => setShowCreate(true)}><PlusIcon /> New slot</Btn>
-          <Btn variant="outline" onClick={() => { localStorage.removeItem("mcbook-token"); navigate("/login"); }}>
-            <LogOutIcon /> Log out
-          </Btn>
-        </div>
-      </nav>
-
-      {/* ── PAGE ── */}
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 24px 80px" }}>
 
         <div className="mc-fade" style={{ marginBottom: 24 }}>
@@ -426,7 +210,7 @@ export default function OwnerDashboard() {
           ))}
         </div>
 
-        {/* ── SLOTS TAB ── */}
+        {/* Slots tab */}
         {tab === "slots" && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 20, alignItems: "start" }}>
             <div>
@@ -482,7 +266,7 @@ export default function OwnerDashboard() {
           </div>
         )}
 
-        {/* ── REQUESTS TAB ── */}
+        {/* Requests tab */}
         {tab === "requests" && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 20, alignItems: "start" }}>
             <div>
@@ -521,7 +305,6 @@ export default function OwnerDashboard() {
         )}
       </div>
 
-      {/* ── CREATE SLOT MODAL ── */}
       {showCreate && (
         <CreateSlotModal onClose={() => setShowCreate(false)} onSave={addSlot} />
       )}
@@ -593,9 +376,7 @@ function SlotCard({ slot, delay, onToggle, onDelete, confirmingDelete, onConfirm
               {slot.bookings.map(b => (
                 <div key={b.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 10px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 7 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 26, height: 26, borderRadius: "50%", background: avatarColor(b.user), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff" }}>
-                      {initials(b.user)}
-                    </div>
+                    <Avatar name={b.user} size={26} />
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{b.user}</div>
                       <div style={{ fontSize: 11.5, color: "var(--text3)" }}>{b.email}</div>
@@ -666,9 +447,7 @@ function RequestCard({ req, delay, onAccept, onDecline }) {
     >
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: "50%", background: avatarColor(req.user), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
-            {initials(req.user)}
-          </div>
+          <Avatar name={req.user} size={36} />
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.01em" }}>{req.user}</div>
             <div style={{ fontSize: 12, color: "var(--text3)" }}>{req.email} · {req.created_at}</div>
@@ -745,11 +524,9 @@ function CreateSlotModal({ onClose, onSave }) {
           background: "var(--surface)", border: "1px solid var(--border)",
           borderRadius: 12, padding: 28, width: "100%", maxWidth: 420,
           boxSizing: "border-box",
-          overflow: "hidden",
           boxShadow: "0 24px 64px rgba(0,0,0,0.18)",
         }}
       >
-        {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text)", letterSpacing: "-0.02em" }}>Create new slot</div>
@@ -760,7 +537,6 @@ function CreateSlotModal({ onClose, onSave }) {
           </button>
         </div>
 
-        {/* Form */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
             <label className="mc-label">Slot title *</label>
@@ -774,7 +550,6 @@ function CreateSlotModal({ onClose, onSave }) {
               padding: "8px 12px",
               background: "var(--surface2)", border: "1px solid var(--border)",
               borderRadius: 8,
-              width: "100%",
             }}>
               <input
                 type="date"
@@ -824,7 +599,6 @@ function CreateSlotModal({ onClose, onSave }) {
           </div>
         </div>
 
-        {/* Footer */}
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 22 }}>
           <Btn variant="outline" onClick={onClose}>Cancel</Btn>
           <Btn variant="red" onClick={handleSave} style={{ opacity: isValid ? 1 : 0.5 }}>
