@@ -582,8 +582,9 @@ function CreateSlotModal({ onClose, onSave }) {
         {/* Type tabs */}
         <div style={{ display: "flex", gap: 2, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, padding: 3, marginBottom: 22 }}>
           {[
-            { key: "type1", label: "Type 1 — Meeting Request" },
-            { key: "type2", label: "Type 2 — Group Meeting" },
+            { key: "type1", label: "Type 1" },
+            { key: "type2", label: "Type 2" },
+            { key: "type3", label: "Type 3" },
           ].map(t => (
             <button
               key={t.key}
@@ -601,11 +602,15 @@ function CreateSlotModal({ onClose, onSave }) {
             </button>
           ))}
         </div>
+        <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 16, marginTop: -14 }}>
+          {modalTab === "type1" && "Meeting Request — owner accepts/declines user requests"}
+          {modalTab === "type2" && "Group Meeting — participants vote on available times"}
+          {modalTab === "type3" && "Recurring Office Hours — open slots anyone can reserve"}
+        </div>
 
-        {modalTab === "type1"
-          ? <Type1Form onClose={onClose} onSave={onSave} />
-          : <Type2Form onClose={onClose} onSave={onSave} />
-        }
+        {modalTab === "type1" && <Type1Form onClose={onClose} onSave={onSave} />}
+        {modalTab === "type2" && <Type2Form onClose={onClose} onSave={onSave} />}
+        {modalTab === "type3" && <Type3Form onClose={onClose} onSave={onSave} />}
       </div>
     </div>
   );
@@ -911,6 +916,117 @@ function FinalizeGroupModal({ slot, onClose, onFinalize }) {
             <CheckIcon /> Confirm &amp; notify
           </Btn>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// -- Type 3 Form (Recurring Office Hours)
+function Type3Form({ onClose, onSave }) {
+  const [form, setForm] = useState({ title: "", location: "", weeks: "", slots: [] });
+  const [newSlot, setNewSlot] = useState({ day: "Monday", time_start: "", time_end: "" });
+
+  function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
+  function setNS(k, v) { setNewSlot(s => ({ ...s, [k]: v })); }
+
+  const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+  function addSlot() {
+    if (!newSlot.time_start || !newSlot.time_end) return;
+    setForm(f => ({
+      ...f,
+      slots: [...f.slots, { id: Date.now(), day: newSlot.day, time: `${newSlot.time_start} – ${newSlot.time_end}` }],
+    }));
+    setNewSlot(s => ({ ...s, time_start: "", time_end: "" }));
+  }
+
+  function removeSlot(id) {
+    setForm(f => ({ ...f, slots: f.slots.filter(s => s.id !== id) }));
+  }
+
+  const isValid = form.title && form.weeks && form.slots.length > 0;
+
+  function handleSave() {
+    if (!isValid) return;
+    onSave({
+      title: form.title,
+      type: "office_hours",
+      status: "active",
+      date: form.slots.map(s => s.day).join(", "),
+      time: form.slots.map(s => s.time).join(" / "),
+      location: form.location || "TBD",
+      is_recurring: true,
+      recurrence_weeks: parseInt(form.weeks),
+      recurring_slots: form.slots,
+    });
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div>
+        <label className="mc-label">Title *</label>
+        <input className="mc-input" placeholder="e.g. Office Hours — COMP 307" value={form.title} onChange={e => setF("title", e.target.value)} />
+      </div>
+      <div>
+        <label className="mc-label">Location</label>
+        <input className="mc-input" placeholder="e.g. Trottier 3090 or Online (Zoom)" value={form.location} onChange={e => setF("location", e.target.value)} />
+      </div>
+      <div>
+        <label className="mc-label">Number of weeks *</label>
+        <input className="mc-input" type="number" min="1" max="52" placeholder="e.g. 13 (full semester)" value={form.weeks} onChange={e => setF("weeks", e.target.value)} />
+      </div>
+
+      <div>
+        <label className="mc-label">Weekly time slots *</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", padding: "8px 12px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, marginBottom: 8 }}>
+          <select
+            value={newSlot.day}
+            onChange={e => setNS("day", e.target.value)}
+            style={{ padding: "5px 10px", background: "rgba(26,115,232,0.1)", border: "1px solid rgba(26,115,232,0.35)", borderRadius: 6, fontSize: 13.5, fontFamily: "inherit", color: "#1a73e8", fontWeight: 500, cursor: "pointer", outline: "none", appearance: "none" }}
+          >
+            {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+          <TimeDropdown value={newSlot.time_start} onChange={v => setNS("time_start", v)} placeholder="Start" />
+          <span style={{ color: "var(--text3)", fontSize: 13 }}>–</span>
+          <TimeDropdown value={newSlot.time_end} onChange={v => setNS("time_end", v)} placeholder="End" />
+          <Btn variant="red" onClick={addSlot} style={{ padding: "5px 12px", fontSize: 12, marginLeft: "auto" }}
+            disabled={!newSlot.time_start || !newSlot.time_end}>
+            + Add
+          </Btn>
+        </div>
+
+        {form.slots.length === 0 ? (
+          <div style={{ fontSize: 12.5, color: "var(--text3)", textAlign: "center", padding: "12px 0" }}>No slots added yet</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {form.slots.map(s => (
+              <div key={s.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 7 }}>
+                <div style={{ fontSize: 13, color: "var(--text)" }}>
+                  <span style={{ fontWeight: 600 }}>{s.day}</span>
+                  <span style={{ color: "var(--text3)", margin: "0 6px" }}>·</span>
+                  {s.time}
+                </div>
+                <button onClick={() => removeSlot(s.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text3)", display: "flex", alignItems: "center", padding: 2, transition: "color 0.15s" }}
+                  onMouseEnter={e => e.currentTarget.style.color = "var(--red)"}
+                  onMouseLeave={e => e.currentTarget.style.color = "var(--text3)"}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ padding: 12, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12.5, color: "var(--text3)", lineHeight: 1.6 }}>
+        💡 These slots repeat every week for <strong style={{ color: "var(--text2)" }}>{form.weeks || "N"} weeks</strong> and are <strong style={{ color: "var(--text2)" }}>immediately public</strong> — any student can reserve them directly from the Browse Slots page.
+      </div>
+
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <Btn variant="outline" onClick={onClose}>Cancel</Btn>
+        <Btn variant="red" onClick={handleSave} style={{ opacity: isValid ? 1 : 0.5 }} disabled={!isValid}>
+          Create office hours
+        </Btn>
       </div>
     </div>
   );

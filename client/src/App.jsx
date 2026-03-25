@@ -7,6 +7,7 @@ import LandingPage from './pages/LandingPage'
 import Dashboard from './pages/Dashboard'
 import OwnerDashboard from './pages/OwnerDashboard'
 import VotePage from './pages/VotePage'
+import BrowseSlotsPage from './pages/BrowseSlotsPage'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/owner/dashboard" element={<OwnerDashboard />} />
         <Route path="/vote/:token" element={<VotePage />} />
+        <Route path="/slots" element={<BrowseSlotsPage />} />
       </Routes>
     </BrowserRouter>
   )
