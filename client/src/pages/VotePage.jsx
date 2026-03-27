@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import Navbar from "../components/Navbar";
 
 // -- Mock data (replace with GET /api/slots/vote/:token)
 const MOCK_GROUP_SLOTS = {
@@ -33,21 +34,6 @@ const CalIcon    = () => (
 );
 const PinIcon    = () => <Icon size={14} d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0zM12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />;
 const PersonIcon = () => <Icon size={14} d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" />;
-const MoonIcon   = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-  </svg>
-);
-const SunIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="5"/>
-    <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-  </svg>
-);
-
 // -- VotePage
 export default function VotePage() {
   const { token } = useParams();
@@ -122,28 +108,11 @@ export default function VotePage() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "'Inter', system-ui, sans-serif" }}>
 
-      {/* Minimal navbar */}
-      <nav style={{
-        height: 52, display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 24px",
-        background: theme === "light" ? "rgba(238,240,244,0.92)" : "rgba(13,15,20,0.88)",
-        backdropFilter: "blur(14px)", borderBottom: "1px solid var(--border)",
-      }}>
-        <button onClick={() => navigate("/")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 8 }}>
-          <svg width="24" height="24" viewBox="0 0 42 42" fill="none">
-            <circle cx="17" cy="17" r="10" stroke="#e8192c" strokeWidth="3.2"/>
-            <line x1="24.5" y1="24.5" x2="34" y2="34" stroke="#e8192c" strokeWidth="3.2" strokeLinecap="round"/>
-            <line x1="31" y1="37" x2="36" y2="32" stroke="#e8192c" strokeWidth="3.2" strokeLinecap="round"/>
-          </svg>
-          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em" }}>McBook</span>
-        </button>
-        <button
-          onClick={() => setTheme(t => t === "light" ? "dark" : "light")}
-          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", display: "flex", alignItems: "center", padding: 4 }}
-        >
-          {theme === "light" ? <MoonIcon /> : <SunIcon />}
-        </button>
-      </nav>
+      <Navbar
+        transparent
+        theme={theme}
+        onToggle={() => setTheme(t => t === "light" ? "dark" : "light")}
+      />
 
       <div style={{ maxWidth: 560, margin: "0 auto", padding: "40px 24px 80px" }}>
 

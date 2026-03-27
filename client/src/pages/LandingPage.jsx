@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-
-// -- Suggestions data
+import Navbar from "../components/Navbar";
 const ALL_SUGGESTIONS = [
   { label: "Joseph P Vybihal", sub: "Professor · 3 active slots",    type: "person", path: "/slots?owner=vybihal" },
   { label: "Derek Long",       sub: "Teaching Assistant · 2 slots",  type: "person", path: "/slots?owner=derek" },
@@ -37,37 +36,7 @@ const CalIcon = () => (
   </svg>
 );
 
-const MoonIcon = () => (
-  <svg width="19" height="19" viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-  </svg>
-);
-
-const SunIcon = () => (
-  <svg width="19" height="19" viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="5"/>
-    <line x1="12" y1="1" x2="12" y2="3"/>
-    <line x1="12" y1="21" x2="12" y2="23"/>
-    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-    <line x1="1" y1="12" x2="3" y2="12"/>
-    <line x1="21" y1="12" x2="23" y2="12"/>
-    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-  </svg>
-);
-
-const LogoIcon = () => (
-  <svg width="40" height="40" viewBox="0 0 42 42" fill="none">
-    <circle cx="17" cy="17" r="10" stroke="#e8192c" strokeWidth="3.2"/>
-    <line x1="24.5" y1="24.5" x2="34" y2="34" stroke="#e8192c" strokeWidth="3.2" strokeLinecap="round"/>
-    <line x1="31" y1="37" x2="36" y2="32" stroke="#e8192c" strokeWidth="3.2" strokeLinecap="round"/>
-  </svg>
-);
-
-// -- LandingPage
+// -- Suggestions data
 export default function LandingPage() {
   const navigate = useNavigate();
   const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
@@ -117,37 +86,17 @@ export default function LandingPage() {
       background: "var(--bg)", color: "var(--text)", fontFamily: "'Inter', system-ui, sans-serif",
     }}>
 
-      {/* Top bar */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "20px 28px", flexShrink: 0,
-      }}>
-        <button
-          onClick={() => navigate("/")}
-          style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}
-          aria-label="Home"
-        >
-          <LogoIcon />
-        </button>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <button
-            onClick={() => setTheme(t => t === "light" ? "dark" : "light")}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", display: "flex", alignItems: "center", padding: 4, borderRadius: 6 }}
-            title="Toggle theme"
-          >
-            {theme === "light" ? <MoonIcon /> : <SunIcon />}
-          </button>
-          <button
-            onClick={() => navigate("/login")}
-            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 15, fontWeight: 600, color: "var(--text)", fontFamily: "inherit", letterSpacing: "-0.01em", padding: 0, transition: "color 0.15s" }}
-            onMouseEnter={e => e.target.style.color = "var(--red)"}
-            onMouseLeave={e => e.target.style.color = "var(--text)"}
-          >
-            Log in →
-          </button>
-        </div>
-      </div>
+      <Navbar
+        transparent
+        theme={theme}
+        onToggle={() => setTheme(t => t === "light" ? "dark" : "light")}
+        navLinks={[
+          { label: "About Us", onClick: () => navigate("/about") },
+        ]}
+        actions={[
+          { label: "Log in →", variant: "ghost", onClick: () => navigate("/login") },
+        ]}
+      />
 
       {/* Hero */}
       <div style={{
