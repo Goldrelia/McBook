@@ -21,7 +21,7 @@ const MOCK_SLOTS = [
     invite_token: "abc123xyz",
     bookings: [
       { id: 1, user: "Alice Martin", email: "alice.martin@mail.mcgill.ca" },
-      { id: 2, user: "Bob Nguyen",   email: "bob.nguyen@mail.mcgill.ca" },
+      { id: 2, user: "Bob Nguyen", email: "bob.nguyen@mail.mcgill.ca" },
     ],
   },
   {
@@ -93,16 +93,16 @@ const Icon = ({ d, size = 13 }) => (
   </svg>
 );
 
-const PlusIcon   = () => <Icon size={14} d="M12 5v14M5 12h14" />;
-const MailIcon   = () => <Icon d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6" />;
-const TrashIcon  = () => <Icon d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />;
-const LinkIcon   = () => <Icon d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />;
-const CheckIcon  = () => <Icon d="M20 6L9 17l-5-5" />;
-const XIcon      = () => <Icon d="M18 6L6 18M6 6l12 12" />;
-const EyeIcon    = () => <Icon d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />;
+const PlusIcon = () => <Icon size={14} d="M12 5v14M5 12h14" />;
+const MailIcon = () => <Icon d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6" />;
+const TrashIcon = () => <Icon d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />;
+const LinkIcon = () => <Icon d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />;
+const CheckIcon = () => <Icon d="M20 6L9 17l-5-5" />;
+const XIcon = () => <Icon d="M18 6L6 18M6 6l12 12" />;
+const EyeIcon = () => <Icon d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />;
 const EyeOffIcon = () => <Icon d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24M1 1l22 22" />;
 const LogOutIcon = () => <Icon size={14} d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />;
-const UsersIcon  = () => <Icon d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />;
+const UsersIcon = () => <Icon d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />;
 
 // -- SectionTitle
 function SectionTitle({ children }) {
@@ -114,20 +114,20 @@ function SectionTitle({ children }) {
 }
 
 const TABS = [
-  { key: "slots",    label: "My Slots" },
+  { key: "slots", label: "My Slots" },
   { key: "requests", label: "Meeting Requests" },
 ];
 
 // -- Main Component
 export default function OwnerDashboard() {
   const navigate = useNavigate();
-  const [theme, setTheme]           = useState(() => localStorage.getItem("mcbook-theme") || "light");
-  const [tab, setTab]               = useState("slots");
-  const [slots, setSlots]           = useState(MOCK_SLOTS);
-  const [requests, setRequests]     = useState(MOCK_REQUESTS);
+  const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
+  const [tab, setTab] = useState("slots");
+  const [slots, setSlots] = useState(MOCK_SLOTS);
+  const [requests, setRequests] = useState(MOCK_REQUESTS);
   const [showCreate, setShowCreate] = useState(false);
   const [deleteSlotId, setDeleteSlotId] = useState(null);
-  const [copiedToken, setCopiedToken]   = useState(null);
+  const [copiedToken, setCopiedToken] = useState(null);
   const [finalizeSlot, setFinalizeSlot] = useState(null);
 
   useEffect(() => {
@@ -195,8 +195,8 @@ export default function OwnerDashboard() {
         onToggle={() => setTheme(t => t === "light" ? "dark" : "light")}
         title="Owner Dashboard"
         actions={[
-          { label: "+ New slot", variant: "red",     onClick: () => setShowCreate(true) },
-          { label: "Log out",    variant: "outline",  onClick: () => { localStorage.removeItem("mcbook-token"); navigate("/login"); } },
+          { label: "+ New slot", variant: "red", onClick: () => setShowCreate(true) },
+          { label: "Log out", variant: "outline", onClick: () => { localStorage.removeItem("mcbook-token"); navigate("/login"); } },
         ]}
       />
 
@@ -263,9 +263,9 @@ export default function OwnerDashboard() {
               <Card style={{ marginBottom: 14 }}>
                 <SectionTitle>Summary</SectionTitle>
                 {[
-                  { label: "Total slots",    val: slots.length },
-                  { label: "Active",         val: slots.filter(s => s.status === "active").length },
-                  { label: "Private",        val: slots.filter(s => s.status === "private").length },
+                  { label: "Total slots", val: slots.length },
+                  { label: "Active", val: slots.filter(s => s.status === "active").length },
+                  { label: "Private", val: slots.filter(s => s.status === "private").length },
                   { label: "Total bookings", val: slots.reduce((a, s) => a + s.bookings.length, 0) },
                 ].map(row => (
                   <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
@@ -311,7 +311,7 @@ export default function OwnerDashboard() {
               <Card>
                 <SectionTitle>Requests summary</SectionTitle>
                 {[
-                  { label: "Pending",  val: requests.filter(r => r.status === "pending").length,  color: "#f59e0b" },
+                  { label: "Pending", val: requests.filter(r => r.status === "pending").length, color: "#f59e0b" },
                   { label: "Accepted", val: requests.filter(r => r.status === "accepted").length, color: "#10b981" },
                   { label: "Declined", val: requests.filter(r => r.status === "declined").length, color: "var(--text3)" },
                 ].map(row => (
@@ -343,10 +343,10 @@ export default function OwnerDashboard() {
 
 // -- Slot Card
 function SlotCard({ slot, delay, onToggle, onDelete, confirmingDelete, onConfirmDelete, onCancelDelete, onCopyLink, copied, onFinalize }) {
-  const [hov, setHov]           = useState(false);
+  const [hov, setHov] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const isActive = slot.status === "active";
-  const isGroup  = slot.type === "group";
+  const isGroup = slot.type === "group";
 
   return (
     <div
@@ -502,7 +502,7 @@ function SlotCard({ slot, delay, onToggle, onDelete, confirmingDelete, onConfirm
 function RequestCard({ req, delay, onAccept, onDecline }) {
   const [hov, setHov] = useState(false);
   const statusConfig = {
-    pending:  { label: "Pending",  color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
+    pending: { label: "Pending", color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
     accepted: { label: "Accepted", color: "#10b981", bg: "rgba(16,185,129,0.1)" },
     declined: { label: "Declined", color: "var(--text3)", bg: "rgba(156,163,175,0.1)" },
   };
@@ -828,9 +828,9 @@ function Type2Form({ onClose, onSave }) {
 
 // -- Finalize Group Slot Modal
 function FinalizeGroupModal({ slot, onClose, onFinalize }) {
-  const [selected, setSelected]       = useState(null);
+  const [selected, setSelected] = useState(null);
   const [isRecurring, setIsRecurring] = useState(false);
-  const [weeks, setWeeks]             = useState("");
+  const [weeks, setWeeks] = useState("");
 
   const sorted = [...(slot.group_slots || [])].sort((a, b) => b.votes - a.votes);
 
@@ -1010,7 +1010,7 @@ function Type3Form({ onClose, onSave }) {
                   onMouseEnter={e => e.currentTarget.style.color = "var(--red)"}
                   onMouseLeave={e => e.currentTarget.style.color = "var(--text3)"}
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
                 </button>
               </div>
             ))}

@@ -56,14 +56,14 @@ const MOCK_APPOINTMENTS = [
 
 // -- Type / status config
 const TYPE_CONFIG = {
-  office_hours: { label: "Office Hours",   color: "var(--red)", bg: "rgba(232,25,44,0.09)" },
-  group:        { label: "Group Meeting",  color: "#3b82f6",    bg: "rgba(59,130,246,0.09)" },
-  request:      { label: "Meeting Request",color: "#10b981",    bg: "rgba(16,185,129,0.09)" },
+  office_hours: { label: "Office Hours", color: "var(--red)", bg: "rgba(232,25,44,0.09)" },
+  group: { label: "Group Meeting", color: "#3b82f6", bg: "rgba(59,130,246,0.09)" },
+  request: { label: "Meeting Request", color: "#10b981", bg: "rgba(16,185,129,0.09)" },
 };
 
 const STATUS_CONFIG = {
   confirmed: { label: "Confirmed", color: "#10b981", bg: "rgba(16,185,129,0.09)" },
-  pending:   { label: "Pending",   color: "#f59e0b", bg: "rgba(245,158,11,0.09)" },
+  pending: { label: "Pending", color: "#f59e0b", bg: "rgba(245,158,11,0.09)" },
 };
 
 // -- Icons
@@ -74,28 +74,28 @@ const Icon = ({ d, size = 13 }) => (
   </svg>
 );
 
-const CalIcon   = () => <Icon d="M3 4h18c0 0 0 0 0 0M3 4v16h18V4M16 2v4M8 2v4M3 10h18" />;
+const CalIcon = () => <Icon d="M3 4h18c0 0 0 0 0 0M3 4v16h18V4M16 2v4M8 2v4M3 10h18" />;
 const ClockIcon = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
   </svg>
 );
 
 // TODO: Don't need to use it like that, we can just import from lucide!
-const MailIcon  = () => <Icon d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6" />;
+const MailIcon = () => <Icon d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6" />;
 const TrashIcon = () => <Icon d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />;
-const PlusIcon  = () => <Icon size={14} d="M12 5v14M5 12h14" />;
-const LogOutIcon= () => <Icon size={14} d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />;
+const PlusIcon = () => <Icon size={14} d="M12 5v14M5 12h14" />;
+const LogOutIcon = () => <Icon size={14} d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />;
 
 // -- Dashboard
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [theme, setTheme]           = useState(() => localStorage.getItem("mcbook-theme") || "light");
+  const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
   const [appointments, setAppointments] = useState(MOCK_APPOINTMENTS);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [filter, setFilter]         = useState("all");
+  const [filter, setFilter] = useState("all");
   // filterKey forces re-mount of cards on every filter change, triggering animation
-  const [filterKey, setFilterKey]   = useState(0);
+  const [filterKey, setFilterKey] = useState(0);
   const [showBookModal, setShowBookModal] = useState(false);
 
   useEffect(() => {
@@ -124,7 +124,7 @@ export default function Dashboard() {
     : appointments.filter(a => a.type === filter);
 
   const confirmed = appointments.filter(a => a.status === "confirmed").length;
-  const pending   = appointments.filter(a => a.status === "pending").length;
+  const pending = appointments.filter(a => a.status === "pending").length;
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -134,8 +134,8 @@ export default function Dashboard() {
         onToggle={() => setTheme(t => t === "light" ? "dark" : "light")}
         title="Dashboard"
         actions={[
-          { label: "+ Book a slot", variant: "red",    onClick: () => setShowBookModal(true) },
-          { label: "Log out",       variant: "outline", onClick: handleLogout },
+          { label: "+ Book a slot", variant: "red", onClick: () => setShowBookModal(true) },
+          { label: "Log out", variant: "outline", onClick: handleLogout },
         ]}
       />
 
@@ -162,10 +162,10 @@ export default function Dashboard() {
               boxShadow: "var(--shadow-sm)", width: "fit-content",
             }}>
               {[
-                { key: "all",          label: "All" },
+                { key: "all", label: "All" },
                 { key: "office_hours", label: "Office Hours" },
-                { key: "group",        label: "Group Meetings" },
-                { key: "request",      label: "Requests" },
+                { key: "group", label: "Group Meetings" },
+                { key: "request", label: "Requests" },
               ].map(tab => (
                 <button
                   key={tab.key}
@@ -227,11 +227,11 @@ export default function Dashboard() {
                 Summary
               </div>
               {[
-                { label: "Confirmed",      val: confirmed },
-                { label: "Pending",        val: pending },
-                { label: "Office Hours",   val: appointments.filter(a => a.type === "office_hours").length },
+                { label: "Confirmed", val: confirmed },
+                { label: "Pending", val: pending },
+                { label: "Office Hours", val: appointments.filter(a => a.type === "office_hours").length },
                 { label: "Group Meetings", val: appointments.filter(a => a.type === "group").length },
-                { label: "Requests",       val: appointments.filter(a => a.type === "request").length },
+                { label: "Requests", val: appointments.filter(a => a.type === "request").length },
               ].map(row => (
                 <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
                   <span style={{ color: "var(--text2)" }}>{row.label}</span>
@@ -269,7 +269,7 @@ function BookSlotModal({ onClose, onRequest, onBrowse }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
           <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text)", letterSpacing: "-0.02em" }}>Book a slot</div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text3)", display: "flex", alignItems: "center", padding: 4 }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
           </button>
         </div>
         <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 22 }}>How would you like to book?</div>
@@ -307,7 +307,7 @@ function BookSlotModal({ onClose, onRequest, onBrowse }) {
 // -- AppointmentCard
 function AppointmentCard({ appt, delay, onDelete, confirmingDelete, onConfirmDelete, onCancelDelete }) {
   const [hovered, setHovered] = useState(false);
-  const type   = TYPE_CONFIG[appt.type]    || TYPE_CONFIG.office_hours;
+  const type = TYPE_CONFIG[appt.type] || TYPE_CONFIG.office_hours;
   const status = STATUS_CONFIG[appt.status] || STATUS_CONFIG.confirmed;
 
   return (
@@ -343,9 +343,9 @@ function AppointmentCard({ appt, delay, onDelete, confirmingDelete, onConfirmDel
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", marginBottom: 12 }}>
         {[
-          { icon: <CalIcon />,   val: appt.date },
+          { icon: <CalIcon />, val: appt.date },
           { icon: <ClockIcon />, val: appt.time },
-          { icon: <MapPin size={13}/>,   val: appt.location },
+          { icon: <MapPin size={13} />, val: appt.location },
         ].map((m, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "var(--text2)" }}>
             <span style={{ color: "var(--text3)" }}>{m.icon}</span>

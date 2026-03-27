@@ -14,9 +14,9 @@ const MOCK_OWNERS = [
     role: "Professor",
     department: "COMP",
     slots: [
-      { id: 101, day: "Monday",    time: "10:00am – 11:00am", location: "Trottier 3090", weeks: 13, booked: false },
+      { id: 101, day: "Monday", time: "10:00am – 11:00am", location: "Trottier 3090", weeks: 13, booked: false },
       { id: 102, day: "Wednesday", time: "10:00am – 11:00am", location: "Trottier 3090", weeks: 13, booked: false },
-      { id: 103, day: "Tuesday",   time: "2:00pm – 3:00pm",   location: "Online (Zoom)", weeks: 13, booked: true  },
+      { id: 103, day: "Tuesday", time: "2:00pm – 3:00pm", location: "Online (Zoom)", weeks: 13, booked: true },
     ],
   },
   {
@@ -26,8 +26,8 @@ const MOCK_OWNERS = [
     role: "Teaching Assistant",
     department: "COMP",
     slots: [
-      { id: 201, day: "Friday",  time: "1:00pm – 2:00pm", location: "Online (Zoom)",  weeks: 8, booked: false },
-      { id: 202, day: "Tuesday", time: "3:00pm – 4:00pm", location: "Trottier 3120",  weeks: 8, booked: false },
+      { id: 201, day: "Friday", time: "1:00pm – 2:00pm", location: "Online (Zoom)", weeks: 8, booked: false },
+      { id: 202, day: "Tuesday", time: "3:00pm – 4:00pm", location: "Trottier 3120", weeks: 8, booked: false },
     ],
   },
   {
@@ -51,26 +51,26 @@ const Icon = ({ d, size = 13 }) => (
 );
 
 const SearchIcon = () => <Icon size={16} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />;
-const ClockIcon  = () => (
+const ClockIcon = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
   </svg>
 );
-const PinIcon    = () => <Icon d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0zM12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />;
-const CalIcon    = () => <Icon d="M3 4h18v18H3zM16 2v4M8 2v4M3 10h18" />;
+const PinIcon = () => <Icon d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0zM12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />;
+const CalIcon = () => <Icon d="M3 4h18v18H3zM16 2v4M8 2v4M3 10h18" />;
 const RepeatIcon = () => <Icon d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" />;
-const CheckIcon  = () => <Icon d="M20 6L9 17l-5-5" />;
-const XIcon      = () => <Icon d="M18 6L6 18M6 6l12 12" />;
-const MailIcon   = () => <Icon d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6" />;
+const CheckIcon = () => <Icon d="M20 6L9 17l-5-5" />;
+const XIcon = () => <Icon d="M18 6L6 18M6 6l12 12" />;
+const MailIcon = () => <Icon d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6" />;
 
 // -- BrowseSlotsPage
 export default function BrowseSlotsPage() {
   const navigate = useNavigate();
-  const [theme, setTheme]         = useState(() => localStorage.getItem("mcbook-theme") || "light");
-  const [query, setQuery]         = useState("");
-  const [owners, setOwners]       = useState(MOCK_OWNERS);
-  const [booking, setBooking]     = useState(null);
-  const [booked, setBooked]       = useState(null);
+  const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
+  const [query, setQuery] = useState("");
+  const [owners, setOwners] = useState(MOCK_OWNERS);
+  const [booking, setBooking] = useState(null);
+  const [booked, setBooked] = useState(null);
   const [showRequest, setShowRequest] = useState(false);
   const [requested, setRequested] = useState(null);
   const [requestOwner, setRequestOwner] = useState(null);
@@ -82,10 +82,10 @@ export default function BrowseSlotsPage() {
 
   const filtered = query.trim()
     ? owners.filter(o =>
-        o.name.toLowerCase().includes(query.toLowerCase()) ||
-        o.department.toLowerCase().includes(query.toLowerCase()) ||
-        o.role.toLowerCase().includes(query.toLowerCase())
-      )
+      o.name.toLowerCase().includes(query.toLowerCase()) ||
+      o.department.toLowerCase().includes(query.toLowerCase()) ||
+      o.role.toLowerCase().includes(query.toLowerCase())
+    )
     : owners;
 
   function handleReserve(owner, slot) {
@@ -360,9 +360,9 @@ function ReserveModal({ owner, slot, onConfirm, onClose }) {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
           {[
-            { icon: <CalIcon />,    label: slot.day },
-            { icon: <ClockIcon />,  label: slot.time },
-            { icon: <PinIcon />,    label: slot.location },
+            { icon: <CalIcon />, label: slot.day },
+            { icon: <ClockIcon />, label: slot.time },
+            { icon: <PinIcon />, label: slot.location },
             { icon: <RepeatIcon />, label: `Repeats for ${slot.weeks} weeks` },
           ].map((row, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: "var(--text2)" }}>
