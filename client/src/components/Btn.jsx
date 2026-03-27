@@ -16,10 +16,10 @@ export default function Btn({ children, variant = "red", onClick, style = {}, ..
   };
 
   const variants = {
-    red:     { background: hov ? "var(--red-hover)" : "var(--red)", color: "#fff", border: "none" },
+    red: { background: hov ? "var(--red-hover)" : "var(--red)", color: "#fff", border: "none" },
     outline: { background: "transparent", color: hov ? "var(--text)" : "var(--text2)", border: "1px solid " + (hov ? "var(--text3)" : "var(--border)") },
-    green:   { background: hov ? "#059669" : "#10b981", color: "#fff", border: "none" },
-    danger:  { background: "transparent", color: hov ? "var(--red)" : "var(--text2)", border: "1px solid " + (hov ? "rgba(232,25,44,0.4)" : "var(--border)") },
+    green: { background: hov ? "#059669" : "#10b981", color: "#fff", border: "none" },
+    danger: { background: "transparent", color: hov ? "var(--red)" : "var(--text2)", border: "1px solid " + (hov ? "rgba(232,25,44,0.4)" : "var(--border)") },
   };
 
   return (
