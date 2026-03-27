@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Btn from "../components/Btn";
@@ -79,7 +80,8 @@ const ClockIcon = () => (
     <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
   </svg>
 );
-const PinIcon   = () => <Icon d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0zM12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />;
+
+// TODO: Don't need to use it like that, we can just import from lucide!
 const MailIcon  = () => <Icon d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6" />;
 const TrashIcon = () => <Icon d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />;
 const PlusIcon  = () => <Icon size={14} d="M12 5v14M5 12h14" />;
@@ -343,7 +345,7 @@ function AppointmentCard({ appt, delay, onDelete, confirmingDelete, onConfirmDel
         {[
           { icon: <CalIcon />,   val: appt.date },
           { icon: <ClockIcon />, val: appt.time },
-          { icon: <PinIcon />,   val: appt.location },
+          { icon: <MapPin size={13}/>,   val: appt.location },
         ].map((m, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "var(--text2)" }}>
             <span style={{ color: "var(--text3)" }}>{m.icon}</span>
