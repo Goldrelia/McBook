@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
-import { MapPin } from "lucide-react";
+import { Calendar, Clock, MapPin, Mail, Trash2, Plus, LogOut} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Btn from "../components/Btn";
 import Card from "../components/Card";
 import Avatar from "../components/Avatar";
+
+const ICON_SIZE_CARDS = 13;
+const ICON_SIZE_QUICK_ACTIONS = 14;
 
 // -- Mock data
 const MOCK_APPOINTMENTS = [
@@ -65,27 +68,6 @@ const STATUS_CONFIG = {
   confirmed: { label: "Confirmed", color: "#10b981", bg: "rgba(16,185,129,0.09)" },
   pending: { label: "Pending", color: "#f59e0b", bg: "rgba(245,158,11,0.09)" },
 };
-
-// -- Icons
-const Icon = ({ d, size = 13 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-    <path d={d} />
-  </svg>
-);
-
-const CalIcon = () => <Icon d="M3 4h18c0 0 0 0 0 0M3 4v16h18V4M16 2v4M8 2v4M3 10h18" />;
-const ClockIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-  </svg>
-);
-
-// TODO: Don't need to use it like that, we can just import from lucide!
-const MailIcon = () => <Icon d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6" />;
-const TrashIcon = () => <Icon d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />;
-const PlusIcon = () => <Icon size={14} d="M12 5v14M5 12h14" />;
-const LogOutIcon = () => <Icon size={14} d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />;
 
 // -- Dashboard
 export default function Dashboard() {
@@ -215,10 +197,10 @@ export default function Dashboard() {
                 Quick actions
               </div>
               <Btn variant="red" onClick={() => navigate("/slots")} style={{ width: "100%", justifyContent: "center", marginBottom: 8 }}>
-                <PlusIcon /> Book a new slot
+                <Plus size={ICON_SIZE_QUICK_ACTIONS}/> Book a new slot
               </Btn>
               <Btn variant="outline" onClick={handleLogout} style={{ width: "100%", justifyContent: "center" }}>
-                <LogOutIcon /> Log out
+                <LogOut size={ICON_SIZE_QUICK_ACTIONS} /> Log out
               </Btn>
             </Card>
 
@@ -343,9 +325,9 @@ function AppointmentCard({ appt, delay, onDelete, confirmingDelete, onConfirmDel
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", marginBottom: 12 }}>
         {[
-          { icon: <CalIcon />, val: appt.date },
-          { icon: <ClockIcon />, val: appt.time },
-          { icon: <MapPin size={13} />, val: appt.location },
+          { icon: <Calendar size={ICON_SIZE_CARDS}/>, val: appt.date },
+          { icon: <Clock size={ICON_SIZE_CARDS}/>, val: appt.time },
+          { icon: <MapPin size={ICON_SIZE_CARDS} />, val: appt.location },
         ].map((m, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "var(--text2)" }}>
             <span style={{ color: "var(--text3)" }}>{m.icon}</span>
@@ -371,7 +353,7 @@ function AppointmentCard({ appt, delay, onDelete, confirmingDelete, onConfirmDel
               onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--text3)"; e.currentTarget.style.color = "var(--text)"; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text2)"; }}
             >
-              <MailIcon /> Email owner
+              <Mail size={ICON_SIZE_CARDS}/> Email owner
             </a>
             <button
               onClick={onDelete}
@@ -379,7 +361,7 @@ function AppointmentCard({ appt, delay, onDelete, confirmingDelete, onConfirmDel
               onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(232,25,44,0.4)"; e.currentTarget.style.color = "var(--red)"; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text2)"; }}
             >
-              <TrashIcon /> Cancel
+              <Trash2 size={ICON_SIZE_CARDS} /> Cancel
             </button>
           </div>
         )}
