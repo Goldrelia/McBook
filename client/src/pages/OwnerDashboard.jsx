@@ -5,6 +5,7 @@ import Btn from "../components/Btn";
 import Card from "../components/Card";
 import Avatar from "../components/Avatar";
 import TimeDropdown from "../components/TimeDropdown";
+import { Plus, Mail, Trash2, Link, Check, X, Eye, EyeOff, LogOut, Users } from "lucide-react";
 
 // -- Mock data
 const MOCK_SLOTS = [
@@ -93,7 +94,6 @@ const Icon = ({ d, size = 13 }) => (
   </svg>
 );
 
-const PlusIcon = () => <Icon size={14} d="M12 5v14M5 12h14" />;
 const MailIcon = () => <Icon d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6" />;
 const TrashIcon = () => <Icon d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />;
 const LinkIcon = () => <Icon d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />;
@@ -277,7 +277,7 @@ export default function OwnerDashboard() {
               <Card>
                 <SectionTitle>Quick actions</SectionTitle>
                 <Btn variant="red" onClick={() => setShowCreate(true)} style={{ width: "100%", justifyContent: "center", marginBottom: 8 }}>
-                  <PlusIcon /> New slot
+                  <Plus size={14}/> New slot
                 </Btn>
                 <Btn variant="outline" onClick={() => setTab("requests")} style={{ width: "100%", justifyContent: "center" }}>
                   View requests {pendingCount > 0 && `(${pendingCount})`}
