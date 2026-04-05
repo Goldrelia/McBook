@@ -4,15 +4,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Moon, Sun } from "lucide-react";
-
-// Logo size scales up slightly in transparent (landing) mode
-const LogoIcon = ({ size = 26 }) => (
-  <svg width={size} height={size} viewBox="0 0 42 42" fill="none">
-    <circle cx="17" cy="17" r="10" stroke="#e8192c" strokeWidth="3.2" />
-    <line x1="24.5" y1="24.5" x2="34" y2="34" stroke="#e8192c" strokeWidth="3.2" strokeLinecap="round" />
-    <line x1="31" y1="37" x2="36" y2="32" stroke="#e8192c" strokeWidth="3.2" strokeLinecap="round" />
-  </svg>
-);
+import logo from "../assets/logo.png";
 
 // -- Navbar
 // Props:
@@ -53,7 +45,7 @@ export default function Navbar({ theme, onToggle, navLinks = [], actions = [], t
         style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}
         aria-label="Home"
       >
-        <LogoIcon size={34} />
+        <img src={logo} alt="McBook logo" height={50} />
       </button>
 
       <span style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em" }}>

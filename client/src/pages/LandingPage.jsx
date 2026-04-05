@@ -1,91 +1,44 @@
-import { useState, useEffect, useRef } from "react";
+// Authors:
+// Aurelia Bouliane - 261118164
+
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
-const ALL_SUGGESTIONS = [
-  { label: "Joseph P Vybihal", sub: "Professor · 3 active slots", type: "person", path: "/slots?owner=vybihal" },
-  { label: "Derek Long", sub: "Teaching Assistant · 2 slots", type: "person", path: "/slots?owner=derek" },
-  { label: "Sara Alami", sub: "Teaching Assistant · 1 slot", type: "person", path: "/slots?owner=sara" },
-  { label: "Office Hours", sub: "Browse all office hour slots", type: "slot", path: "/slots?type=office_hours" },
-  { label: "Group Meetings", sub: "Find group scheduling sessions", type: "slot", path: "/slots?type=group" },
-  { label: "Meeting Requests", sub: "Request a one-on-one meeting", type: "slot", path: "/slots?type=request" },
+import { Calendar, Users, MessageSquare } from "lucide-react";
+
+const FEATURES = [
+  {
+    icon: <Calendar size={20} />,
+    title: "Office Hours",
+    description: "Browse and reserve available office hour slots from professors and TAs — no more back-and-forth emails.",
+  },
+  {
+    icon: <Users size={20} />,
+    title: "Group Meetings",
+    description: "Coordinate group sessions with availability polling. The best time gets selected and everyone is notified.",
+  },
+  {
+    icon: <MessageSquare size={20} />,
+    title: "Meeting Requests",
+    description: "Send a one-on-one meeting request directly to a professor or TA. They accept or decline, and you're notified.",
+  },
 ];
-// Will probably remove search, just wanted to see what it would look like since you need to login to do anything
-// -- Icons
-const SearchIcon = ({ size = 17 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-  </svg>
-);
 
-const PersonIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
-  </svg>
-);
-
-const CalIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="4" width="18" height="18" rx="2" />
-    <line x1="16" y1="2" x2="16" y2="6" />
-    <line x1="8" y1="2" x2="8" y2="6" />
-    <line x1="3" y1="10" x2="21" y2="10" />
-  </svg>
-);
-
-// -- Suggestions data
 export default function LandingPage() {
   const navigate = useNavigate();
   const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
-  const [query, setQuery] = useState("");
-  const [showDrop, setShowDrop] = useState(false);
-  const inputRef = useRef(null);
-  const dropRef = useRef(null);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("mcbook-theme", theme);
   }, [theme]);
 
-  useEffect(() => {
-    function handler(e) {
-      if (!dropRef.current?.contains(e.target) && !inputRef.current?.contains(e.target)) {
-        setShowDrop(false);
-      }
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const filtered = query.trim()
-    ? ALL_SUGGESTIONS.filter(s =>
-      s.label.toLowerCase().includes(query.toLowerCase()) ||
-      s.sub.toLowerCase().includes(query.toLowerCase())
-    )
-    : ALL_SUGGESTIONS;
-
-  function handleSelect(path) {
-    setShowDrop(false);
-    setQuery("");
-    navigate(path);
-  }
-
-  function handleKeyDown(e) {
-    if (e.key === "Enter" && query.trim()) {
-      navigate(`/slots?q=${encodeURIComponent(query.trim())}`);
-      setShowDrop(false);
-    }
-  }
-
   return (
     <div style={{
       display: "flex", flexDirection: "column", minHeight: "100vh",
-      background: "var(--bg)", color: "var(--text)", fontFamily: "'Inter', system-ui, sans-serif",
+      background: "var(--bg)", color: "var(--text)",
+      fontFamily: "'Inter', system-ui, sans-serif",
     }}>
-
       <Navbar
         transparent
         theme={theme}
@@ -102,102 +55,147 @@ export default function LandingPage() {
       <div style={{
         flex: 1, display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
-        textAlign: "center", padding: "0 24px 120px",
+        textAlign: "center", padding: "60px 24px 40px",
       }}>
-        <h1
+
+        {/* Eyebrow label */}
+        <div
           className="mc-anim-0"
           style={{
-            fontSize: "clamp(2.5rem, 6vw, 4.1rem)",
-            fontWeight: 900, lineHeight: 1.08,
-            letterSpacing: "-0.04em", color: "var(--text)",
-            maxWidth: 680, marginBottom: 36,
+            display: "inline-flex", alignItems: "center", gap: 7,
+            padding: "5px 14px", borderRadius: 99,
+            border: "1px solid var(--border)",
+            background: "var(--surface)",
+            fontSize: 12, fontWeight: 600,
+            color: "var(--text3)",
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
+            marginBottom: 28,
           }}
         >
-          Book time with your professors and TAs at McGill
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--red)", display: "inline-block" }} />
+          McGill University · SOCS
+        </div>
+
+        {/* Headline */}
+        <h1
+          className="mc-anim-1"
+          style={{
+            fontSize: "clamp(2.4rem, 6vw, 4rem)",
+            fontWeight: 900, lineHeight: 1.08,
+            letterSpacing: "-0.04em", color: "var(--text)",
+            maxWidth: 680, marginBottom: 22,
+          }}
+        >
+          Book time with your professors and TAs
         </h1>
 
-        {/* Search bar */}
-        <div
+        {/* Subheadline */}
+        <p
           className="mc-anim-1"
-          style={{ width: "100%", maxWidth: 680, position: "relative" }}
+          style={{
+            fontSize: "clamp(1rem, 2vw, 1.15rem)",
+            color: "var(--text2)", lineHeight: 1.65,
+            maxWidth: 480, marginBottom: 40,
+            fontWeight: 400,
+          }}
         >
-          <div style={{
-            position: "absolute", left: 18, top: "50%", transform: "translateY(-50%)",
-            color: "var(--text3)", pointerEvents: "none", display: "flex", alignItems: "center",
-          }}>
-            <SearchIcon size={17} />
-          </div>
+          McBook makes it easy to schedule office hours, group meetings, and one-on-one sessions — all in one place.
+        </p>
 
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            placeholder="Search by professor, department, or slot type"
-            onChange={e => { setQuery(e.target.value); setShowDrop(true); }}
-            onFocus={() => setShowDrop(true)}
-            onKeyDown={handleKeyDown}
+        {/* CTA */}
+        <div className="mc-anim-1" style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
+          <button
+            onClick={() => navigate("/login")}
             style={{
-              width: "100%", height: 52,
-              padding: "0 20px 0 50px",
-              background: "var(--surface)", border: "1px solid var(--border)",
-              borderRadius: 10, fontSize: 15.5, fontFamily: "inherit",
-              color: "var(--text)", outline: "none",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-              transition: "border-color 0.15s, box-shadow 0.15s",
+              padding: "12px 28px", borderRadius: 9, border: "none",
+              background: "var(--red)", color: "#fff",
+              fontSize: 14.5, fontWeight: 700, fontFamily: "inherit",
+              cursor: "pointer", transition: "opacity 0.15s",
+              letterSpacing: "-0.01em",
             }}
-            onFocusCapture={e => { e.target.style.borderColor = "var(--red)"; e.target.style.boxShadow = "0 0 0 3px var(--red-light), 0 1px 3px rgba(0,0,0,0.06)"; }}
-            onBlurCapture={e => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)"; }}
-          />
-
-          {/* Dropdown */}
-          {showDrop && filtered.length > 0 && (
-            <div
-              ref={dropRef}
-              style={{
-                position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0,
-                background: "var(--surface)", border: "1px solid var(--border)",
-                borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
-                overflow: "hidden", zIndex: 50,
-              }}
-            >
-              {filtered.map((s, i) => (
-                <SuggestionItem key={i} item={s} onSelect={() => handleSelect(s.path)} />
-              ))}
-            </div>
-          )}
+            onMouseEnter={e => e.currentTarget.style.opacity = "0.88"}
+            onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+          >
+            Get started →
+          </button>
+          <button
+            onClick={() => navigate("/about")}
+            style={{
+              padding: "12px 28px", borderRadius: 9,
+              border: "1px solid var(--border)",
+              background: "var(--surface)", color: "var(--text2)",
+              fontSize: 14.5, fontWeight: 600, fontFamily: "inherit",
+              cursor: "pointer", transition: "border-color 0.15s, color 0.15s",
+              letterSpacing: "-0.01em",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--text3)"; e.currentTarget.style.color = "var(--text)"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text2)"; }}
+          >
+            Learn more
+          </button>
         </div>
+      </div>
+
+      {/* Feature cards */}
+      <div style={{
+        maxWidth: 900, margin: "0 auto",
+        padding: "20px 24px 80px",
+        width: "100%",
+      }}>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: 16,
+        }}>
+          {FEATURES.map((f, i) => (
+            <FeatureCard key={i} feature={f} delay={i * 0.07} />
+          ))}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{
+        textAlign: "center", padding: "20px 24px",
+        borderTop: "1px solid var(--border)",
+        fontSize: 12, color: "var(--text3)",
+      }}>
+        McBook · COMP 307 · McGill University · 2026
       </div>
     </div>
   );
 }
 
-// -- SuggestionItem
-function SuggestionItem({ item, onSelect }) {
-  const [hovered, setHovered] = useState(false);
+function FeatureCard({ feature, delay }) {
+  const [hov, setHov] = useState(false);
 
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onMouseDown={e => { e.preventDefault(); onSelect(); }}
+      className="mc-fade"
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
       style={{
-        display: "flex", alignItems: "center", gap: 12,
-        padding: "11px 18px", cursor: "pointer",
-        background: hovered ? "var(--bg)" : "transparent",
-        borderBottom: "1px solid var(--border)",
-        transition: "background 0.1s",
+        animationDelay: `${delay}s`,
+        background: "var(--surface)",
+        border: `1px solid ${hov ? "rgba(232,25,44,0.3)" : "var(--border)"}`,
+        borderRadius: 12, padding: "24px 22px",
+        boxShadow: hov ? "0 0 0 3px rgba(232,25,44,0.07), var(--shadow-sm)" : "var(--shadow-sm)",
+        transition: "border-color 0.15s, box-shadow 0.15s",
       }}
     >
       <div style={{
-        width: 28, height: 28, background: "var(--red-light)", borderRadius: 6,
+        width: 40, height: 40, borderRadius: 9,
+        background: "var(--red-light)", color: "var(--red)",
         display: "flex", alignItems: "center", justifyContent: "center",
-        color: "var(--red)", flexShrink: 0,
+        marginBottom: 14,
       }}>
-        {item.type === "person" ? <PersonIcon /> : <CalIcon />}
+        {feature.icon}
       </div>
-      <div style={{ textAlign: "left" }}>
-        <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)" }}>{item.label}</div>
-        <div style={{ fontSize: 12, color: "var(--text3)" }}>{item.sub}</div>
+      <div style={{ fontSize: 14.5, fontWeight: 700, color: "var(--text)", marginBottom: 8, letterSpacing: "-0.01em" }}>
+        {feature.title}
+      </div>
+      <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.6 }}>
+        {feature.description}
       </div>
     </div>
   );
