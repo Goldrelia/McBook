@@ -4,6 +4,9 @@ import Navbar from "../components/Navbar";
 import Card from "../components/Card";
 import Avatar from "../components/Avatar";
 import TimeDropdown from "../components/TimeDropdown";
+import { Search, Calendar, Clock, MapPin, Repeat, Check, Plus, X, Mail} from "lucide-react";
+
+const DEFAULT_ICON_SIZE = 13;
 
 // -- Mock data
 const MOCK_OWNERS = [
@@ -49,19 +52,6 @@ const Icon = ({ d, size = 13 }) => (
     <path d={d} />
   </svg>
 );
-
-const SearchIcon = () => <Icon size={16} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />;
-const ClockIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-  </svg>
-);
-const PinIcon = () => <Icon d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0zM12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />;
-const CalIcon = () => <Icon d="M3 4h18v18H3zM16 2v4M8 2v4M3 10h18" />;
-const RepeatIcon = () => <Icon d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" />;
-const CheckIcon = () => <Icon d="M20 6L9 17l-5-5" />;
-const XIcon = () => <Icon d="M18 6L6 18M6 6l12 12" />;
-const MailIcon = () => <Icon d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6" />;
 
 // -- BrowseSlotsPage
 export default function BrowseSlotsPage() {
@@ -149,24 +139,24 @@ export default function BrowseSlotsPage() {
         {/* Success banners */}
         {booked && (
           <div className="mc-fade" style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 9, marginBottom: 20, fontSize: 13.5 }}>
-            <span style={{ color: "#10b981", display: "flex" }}><CheckIcon /></span>
+            <span style={{ color: "#10b981", display: "flex" }}><Check size={DEFAULT_ICON_SIZE}/></span>
             <span style={{ color: "var(--text)" }}>
               Booked <strong>{booked.slot.day} at {booked.slot.time}</strong> with <strong>{booked.owner.name}</strong>. A notification email has been sent.
             </span>
             <button onClick={() => setBooked(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--text3)", display: "flex" }}>
-              <XIcon />
+              <X size={DEFAULT_ICON_SIZE} />
             </button>
           </div>
         )}
 
         {requested && (
           <div className="mc-fade" style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.25)", borderRadius: 9, marginBottom: 20, fontSize: 13.5 }}>
-            <span style={{ color: "#3b82f6", display: "flex" }}><MailIcon /></span>
+            <span style={{ color: "#3b82f6", display: "flex" }}><Mail size={DEFAULT_ICON_SIZE} /></span>
             <span style={{ color: "var(--text)" }}>
               Meeting request sent to <strong>{requested.name}</strong>. You'll be notified when they respond.
             </span>
             <button onClick={() => setRequested(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--text3)", display: "flex" }}>
-              <XIcon />
+              <X size={DEFAULT_ICON_SIZE} />
             </button>
           </div>
         )}
@@ -179,7 +169,7 @@ export default function BrowseSlotsPage() {
         {/* Search */}
         <div style={{ position: "relative", marginBottom: 20 }}>
           <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text3)", display: "flex", pointerEvents: "none" }}>
-            <SearchIcon />
+            <Search size={16}/>
           </div>
           <input
             type="text"
@@ -270,7 +260,7 @@ function OwnerCard({ owner, delay, onReserve, onRequest }) {
               transition: "all 0.15s",
             }}
           >
-            <MailIcon /> Request
+            <Mail size={DEFAULT_ICON_SIZE} /> Request
           </button>
         </div>
       </div>
@@ -304,16 +294,16 @@ function SlotRow({ slot, onReserve }) {
       }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px" }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
-          <CalIcon /> {slot.day}
+          <Calendar size={DEFAULT_ICON_SIZE} /> {slot.day}
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "var(--text2)" }}>
-          <ClockIcon /> {slot.time}
+          <Clock size={DEFAULT_ICON_SIZE} /> {slot.time}
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "var(--text2)" }}>
-          <PinIcon /> {slot.location}
+          <MapPin size={DEFAULT_ICON_SIZE} /> {slot.location}
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--text3)" }}>
-          <RepeatIcon /> {slot.weeks}w
+          <Repeat size={DEFAULT_ICON_SIZE} /> {slot.weeks}w
         </span>
       </div>
 
@@ -360,10 +350,10 @@ function ReserveModal({ owner, slot, onConfirm, onClose }) {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
           {[
-            { icon: <CalIcon />, label: slot.day },
-            { icon: <ClockIcon />, label: slot.time },
-            { icon: <PinIcon />, label: slot.location },
-            { icon: <RepeatIcon />, label: `Repeats for ${slot.weeks} weeks` },
+            { icon: <Calendar size={DEFAULT_ICON_SIZE}/>, label: slot.day },
+            { icon: <Clock size={DEFAULT_ICON_SIZE} />, label: slot.time },
+            { icon: <MapPin size={DEFAULT_ICON_SIZE}/>, label: slot.location },
+            { icon: <Repeat size={DEFAULT_ICON_SIZE} />, label: `Repeats for ${slot.weeks} weeks` },
           ].map((row, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: "var(--text2)" }}>
               <span style={{ color: "var(--text3)" }}>{row.icon}</span> {row.label}
@@ -380,7 +370,7 @@ function ReserveModal({ owner, slot, onConfirm, onClose }) {
             Cancel
           </button>
           <button onClick={onConfirm} style={{ padding: "7px 14px", borderRadius: 7, border: "none", background: "var(--red)", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-            <CheckIcon /> Confirm booking
+            <Check size={DEFAULT_ICON_SIZE}/> Confirm booking
           </button>
         </div>
       </div>
@@ -405,7 +395,7 @@ function RequestMeetingModal({ owners, preselectedOwner, onClose, onSubmit }) {
             <div style={{ fontSize: 12.5, color: "var(--text3)", marginTop: 2 }}>Send a one-on-one meeting request to a professor or TA.</div>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text3)", display: "flex", padding: 4 }}>
-            <XIcon />
+            <X size={DEFAULT_ICON_SIZE} />
           </button>
         </div>
 
@@ -468,7 +458,7 @@ function RequestMeetingModal({ owners, preselectedOwner, onClose, onSubmit }) {
               onClick={() => { if (isValid) onSubmit(form); }}
               style={{ padding: "7px 14px", borderRadius: 7, border: "none", background: "var(--red)", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: isValid ? "pointer" : "not-allowed", opacity: isValid ? 1 : 0.5, display: "flex", alignItems: "center", gap: 6 }}
             >
-              <MailIcon /> Send request
+              <Mail size={DEFAULT_ICON_SIZE}/> Send request
             </button>
           </div>
         </div>

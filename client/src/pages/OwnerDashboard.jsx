@@ -5,7 +5,9 @@ import Btn from "../components/Btn";
 import Card from "../components/Card";
 import Avatar from "../components/Avatar";
 import TimeDropdown from "../components/TimeDropdown";
-import { Plus, Mail, Trash2, Link, Check, X, Eye, EyeOff, LogOut, Users } from "lucide-react";
+import { Plus, Mail, Trash2, Link, Check, X, Eye, EyeOff, Users } from "lucide-react";
+
+const DEFAULT_ICON_SIZE = 13;
 
 // -- Mock data
 const MOCK_SLOTS = [
@@ -93,16 +95,6 @@ const Icon = ({ d, size = 13 }) => (
     <path d={d} />
   </svg>
 );
-
-const MailIcon = () => <Icon d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6" />;
-const TrashIcon = () => <Icon d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />;
-const LinkIcon = () => <Icon d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />;
-const CheckIcon = () => <Icon d="M20 6L9 17l-5-5" />;
-const XIcon = () => <Icon d="M18 6L6 18M6 6l12 12" />;
-const EyeIcon = () => <Icon d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />;
-const EyeOffIcon = () => <Icon d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24M1 1l22 22" />;
-const LogOutIcon = () => <Icon size={14} d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />;
-const UsersIcon = () => <Icon d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />;
 
 // -- SectionTitle
 function SectionTitle({ children }) {
@@ -460,7 +452,7 @@ function SlotCard({ slot, delay, onToggle, onDelete, confirmingDelete, onConfirm
                     onMouseEnter={e => { e.currentTarget.style.color = "var(--text)"; e.currentTarget.style.borderColor = "var(--text3)"; }}
                     onMouseLeave={e => { e.currentTarget.style.color = "var(--text2)"; e.currentTarget.style.borderColor = "var(--border)"; }}
                   >
-                    <MailIcon /> Email
+                    <Mail size={DEFAULT_ICON_SIZE} /> Email
                   </a>
                 </div>
               ))}
@@ -472,15 +464,15 @@ function SlotCard({ slot, delay, onToggle, onDelete, confirmingDelete, onConfirm
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid var(--border)" }}>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           <Btn variant="outline" onClick={onToggle}>
-            {isActive ? <EyeOffIcon /> : <EyeIcon />}
+            {isActive ? <EyeOff size={DEFAULT_ICON_SIZE} /> : <Eye size={DEFAULT_ICON_SIZE} />}
             {isActive ? "Make private" : "Activate"}
           </Btn>
           <Btn variant="outline" onClick={onCopyLink}>
-            <LinkIcon /> {copied ? "Copied!" : "Copy invite link"}
+            <Link size={DEFAULT_ICON_SIZE} /> {copied ? "Copied!" : "Copy invite link"}
           </Btn>
           {isGroup && !slot.finalized && (
             <Btn variant="outline" onClick={onFinalize} style={{ color: "#3b82f6", borderColor: "rgba(59,130,246,0.3)" }}>
-              <UsersIcon /> Finalize time
+              <Users size={DEFAULT_ICON_SIZE} /> Finalize time
             </Btn>
           )}
         </div>
@@ -491,7 +483,7 @@ function SlotCard({ slot, delay, onToggle, onDelete, confirmingDelete, onConfirm
             <Btn variant="outline" onClick={onCancelDelete} style={{ padding: "4px 10px" }}>No</Btn>
           </div>
         ) : (
-          <Btn variant="danger" onClick={onDelete}><TrashIcon /> Delete</Btn>
+          <Btn variant="danger" onClick={onDelete}><Trash2 size={DEFAULT_ICON_SIZE} /> Delete</Btn>
         )}
       </div>
     </div>
@@ -544,12 +536,12 @@ function RequestCard({ req, delay, onAccept, onDecline }) {
           onMouseEnter={e => { e.currentTarget.style.color = "var(--text)"; e.currentTarget.style.borderColor = "var(--text3)"; }}
           onMouseLeave={e => { e.currentTarget.style.color = "var(--text2)"; e.currentTarget.style.borderColor = "var(--border)"; }}
         >
-          <MailIcon /> Email
+          <Mail size={DEFAULT_ICON_SIZE} /> Email
         </a>
         {req.status === "pending" && (
           <div style={{ display: "flex", gap: 6 }}>
-            <Btn variant="green" onClick={onAccept}><CheckIcon /> Accept</Btn>
-            <Btn variant="danger" onClick={onDecline}><XIcon /> Decline</Btn>
+            <Btn variant="green" onClick={onAccept}><Check size={DEFAULT_ICON_SIZE}/> Accept</Btn>
+            <Btn variant="danger" onClick={onDecline}><X size={DEFAULT_ICON_SIZE} /> Decline</Btn>
           </div>
         )}
       </div>
@@ -575,7 +567,7 @@ function CreateSlotModal({ onClose, onSave }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
           <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text)", letterSpacing: "-0.02em" }}>Create new slot</div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text3)", display: "flex", alignItems: "center", padding: 4 }}>
-            <XIcon />
+            <X size={DEFAULT_ICON_SIZE} />
           </button>
         </div>
 
@@ -757,7 +749,7 @@ function Type2Form({ onClose, onSave }) {
                   onMouseEnter={e => e.currentTarget.style.color = "var(--red)"}
                   onMouseLeave={e => e.currentTarget.style.color = "var(--text3)"}
                 >
-                  <XIcon />
+                  <X size={DEFAULT_ICON_SIZE}/>
                 </button>
               </div>
             ))}
@@ -782,7 +774,7 @@ function Type2Form({ onClose, onSave }) {
 
       <div style={{ padding: 16, background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 8 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: "#3b82f6", marginBottom: 6 }}>
-          <UsersIcon /> &nbsp; Invite link ready
+          <Users size={DEFAULT_ICON_SIZE} /> &nbsp; Invite link ready
         </div>
         <div style={{ fontSize: 12.5, color: "var(--text2)", marginBottom: 10, lineHeight: 1.6 }}>
           Share this link with participants. They'll see your available slots and vote for the times that work for them.
@@ -792,7 +784,7 @@ function Type2Form({ onClose, onSave }) {
             {inviteUrl}
           </div>
           <Btn variant="outline" onClick={() => { navigator.clipboard.writeText(inviteUrl); }} style={{ fontSize: 12, padding: "5px 10px", flexShrink: 0 }}>
-            <LinkIcon /> Copy
+            <Link size={DEFAULT_ICON_SIZE}/> Copy
           </Btn>
         </div>
       </div>
@@ -846,7 +838,7 @@ function FinalizeGroupModal({ slot, onClose, onFinalize }) {
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
           <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text)", letterSpacing: "-0.02em" }}>Finalize meeting time</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text3)", display: "flex", alignItems: "center", padding: 4 }}><XIcon /></button>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text3)", display: "flex", alignItems: "center", padding: 4 }}><X size={DEFAULT_ICON_SIZE} /></button>
         </div>
         <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 20 }}>{slot.title}</div>
 
@@ -913,7 +905,7 @@ function FinalizeGroupModal({ slot, onClose, onFinalize }) {
           <Btn variant="outline" onClick={onClose}>Cancel</Btn>
           <Btn variant="red" onClick={() => { if (selected) onFinalize(selected, isRecurring, isRecurring ? parseInt(weeks) || null : null); }}
             style={{ opacity: selected ? 1 : 0.5 }} disabled={!selected}>
-            <CheckIcon /> Confirm &amp; notify
+            <Check size={DEFAULT_ICON_SIZE} /> Confirm &amp; notify
           </Btn>
         </div>
       </div>
