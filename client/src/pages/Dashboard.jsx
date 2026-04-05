@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Calendar, Clock, MapPin, Mail, Trash2, Plus, LogOut} from "lucide-react";
+import { Calendar, Clock, MapPin, Mail, Trash2, Plus, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Btn from "../components/Btn";
@@ -114,7 +114,10 @@ export default function Dashboard() {
       <Navbar
         theme={theme}
         onToggle={() => setTheme(t => t === "light" ? "dark" : "light")}
-        title="Dashboard"
+        navLinks={[
+          { label: "Dashboard", onClick: () => navigate("/dashboard"), active: true },
+          { label: "About Us", onClick: () => navigate("/about") },
+        ]}
         actions={[
           { label: "+ Book a slot", variant: "red", onClick: () => setShowBookModal(true) },
           { label: "Log out", variant: "outline", onClick: handleLogout },
@@ -197,7 +200,7 @@ export default function Dashboard() {
                 Quick actions
               </div>
               <Btn variant="red" onClick={() => navigate("/slots")} style={{ width: "100%", justifyContent: "center", marginBottom: 8 }}>
-                <Plus size={ICON_SIZE_QUICK_ACTIONS}/> Book a new slot
+                <Plus size={ICON_SIZE_QUICK_ACTIONS} /> Book a new slot
               </Btn>
               <Btn variant="outline" onClick={handleLogout} style={{ width: "100%", justifyContent: "center" }}>
                 <LogOut size={ICON_SIZE_QUICK_ACTIONS} /> Log out
@@ -325,8 +328,8 @@ function AppointmentCard({ appt, delay, onDelete, confirmingDelete, onConfirmDel
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", marginBottom: 12 }}>
         {[
-          { icon: <Calendar size={ICON_SIZE_CARDS}/>, val: appt.date },
-          { icon: <Clock size={ICON_SIZE_CARDS}/>, val: appt.time },
+          { icon: <Calendar size={ICON_SIZE_CARDS} />, val: appt.date },
+          { icon: <Clock size={ICON_SIZE_CARDS} />, val: appt.time },
           { icon: <MapPin size={ICON_SIZE_CARDS} />, val: appt.location },
         ].map((m, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "var(--text2)" }}>
@@ -353,7 +356,7 @@ function AppointmentCard({ appt, delay, onDelete, confirmingDelete, onConfirmDel
               onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--text3)"; e.currentTarget.style.color = "var(--text)"; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text2)"; }}
             >
-              <Mail size={ICON_SIZE_CARDS}/> Email owner
+              <Mail size={ICON_SIZE_CARDS} /> Email owner
             </a>
             <button
               onClick={onDelete}

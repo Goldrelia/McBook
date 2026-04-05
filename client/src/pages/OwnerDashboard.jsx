@@ -177,7 +177,10 @@ export default function OwnerDashboard() {
       <Navbar
         theme={theme}
         onToggle={() => setTheme(t => t === "light" ? "dark" : "light")}
-        title="Owner Dashboard"
+        navLinks={[
+          { label: "Owner Dashboard", onClick: () => navigate("/owner/dashboard"), active: true },
+          { label: "About Us", onClick: () => navigate("/about") },
+        ]}
         actions={[
           { label: "+ New slot", variant: "red", onClick: () => setShowCreate(true) },
           { label: "Log out", variant: "outline", onClick: () => { localStorage.removeItem("mcbook-token"); navigate("/login"); } },
@@ -261,7 +264,7 @@ export default function OwnerDashboard() {
               <Card>
                 <SectionTitle>Quick actions</SectionTitle>
                 <Btn variant="red" onClick={() => setShowCreate(true)} style={{ width: "100%", justifyContent: "center", marginBottom: 8 }}>
-                  <Plus size={14}/> New slot
+                  <Plus size={14} /> New slot
                 </Btn>
                 <Btn variant="outline" onClick={() => setTab("requests")} style={{ width: "100%", justifyContent: "center" }}>
                   View requests {pendingCount > 0 && `(${pendingCount})`}
@@ -382,9 +385,9 @@ function SlotCard({ slot, delay, onToggle, onDelete, confirmingDelete, onConfirm
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: "5px 16px", marginBottom: 12, fontSize: 12.5, color: "var(--text2)" }}>
-        <span> < Calendar size={DEFAULT_ICON_SIZE}/> {slot.date}</span>
-        <span> < Clock size={DEFAULT_ICON_SIZE}/> {slot.time}</span>
-        <span> < MapPin size={DEFAULT_ICON_SIZE}/> {slot.location}</span>
+        <span> < Calendar size={DEFAULT_ICON_SIZE} /> {slot.date}</span>
+        <span> < Clock size={DEFAULT_ICON_SIZE} /> {slot.time}</span>
+        <span> < MapPin size={DEFAULT_ICON_SIZE} /> {slot.location}</span>
       </div>
 
       {/* Group slot vote counts */}
@@ -532,7 +535,7 @@ function RequestCard({ req, delay, onAccept, onDecline }) {
         </a>
         {req.status === "pending" && (
           <div style={{ display: "flex", gap: 6 }}>
-            <Btn variant="green" onClick={onAccept}><Check size={DEFAULT_ICON_SIZE}/> Accept</Btn>
+            <Btn variant="green" onClick={onAccept}><Check size={DEFAULT_ICON_SIZE} /> Accept</Btn>
             <Btn variant="danger" onClick={onDecline}><X size={DEFAULT_ICON_SIZE} /> Decline</Btn>
           </div>
         )}
@@ -741,7 +744,7 @@ function Type2Form({ onClose, onSave }) {
                   onMouseEnter={e => e.currentTarget.style.color = "var(--red)"}
                   onMouseLeave={e => e.currentTarget.style.color = "var(--text3)"}
                 >
-                  <X size={DEFAULT_ICON_SIZE}/>
+                  <X size={DEFAULT_ICON_SIZE} />
                 </button>
               </div>
             ))}
@@ -776,7 +779,7 @@ function Type2Form({ onClose, onSave }) {
             {inviteUrl}
           </div>
           <Btn variant="outline" onClick={() => { navigator.clipboard.writeText(inviteUrl); }} style={{ fontSize: 12, padding: "5px 10px", flexShrink: 0 }}>
-            <Link size={DEFAULT_ICON_SIZE}/> Copy
+            <Link size={DEFAULT_ICON_SIZE} /> Copy
           </Btn>
         </div>
       </div>
