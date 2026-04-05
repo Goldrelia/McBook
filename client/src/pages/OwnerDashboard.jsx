@@ -5,7 +5,7 @@ import Btn from "../components/Btn";
 import Card from "../components/Card";
 import Avatar from "../components/Avatar";
 import TimeDropdown from "../components/TimeDropdown";
-import { Plus, Mail, Trash2, Link, Check, X, Eye, EyeOff, Users } from "lucide-react";
+import { Plus, Mail, Trash2, Link, Check, X, Eye, EyeOff, Users, Calendar, Clock, MapPin } from "lucide-react";
 
 const DEFAULT_ICON_SIZE = 13;
 
@@ -87,14 +87,6 @@ const MOCK_REQUESTS = [
     created_at: "March 20, 2026",
   },
 ];
-
-// -- Icons
-const Icon = ({ d, size = 13 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-    <path d={d} />
-  </svg>
-);
 
 // -- SectionTitle
 function SectionTitle({ children }) {
@@ -390,9 +382,9 @@ function SlotCard({ slot, delay, onToggle, onDelete, confirmingDelete, onConfirm
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: "5px 16px", marginBottom: 12, fontSize: 12.5, color: "var(--text2)" }}>
-        <span>📅 {slot.date}</span>
-        <span>🕐 {slot.time}</span>
-        <span>📍 {slot.location}</span>
+        <span> < Calendar size={DEFAULT_ICON_SIZE}/> {slot.date}</span>
+        <span> < Clock size={DEFAULT_ICON_SIZE}/> {slot.time}</span>
+        <span> < MapPin size={DEFAULT_ICON_SIZE}/> {slot.location}</span>
       </div>
 
       {/* Group slot vote counts */}

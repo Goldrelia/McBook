@@ -45,14 +45,6 @@ const MOCK_OWNERS = [
   },
 ];
 
-// -- Icons
-const Icon = ({ d, size = 13 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-    <path d={d} />
-  </svg>
-);
-
 // -- BrowseSlotsPage
 export default function BrowseSlotsPage() {
   const navigate = useNavigate();

@@ -9,7 +9,7 @@ const ALL_SUGGESTIONS = [
   { label: "Group Meetings", sub: "Find group scheduling sessions", type: "slot", path: "/slots?type=group" },
   { label: "Meeting Requests", sub: "Request a one-on-one meeting", type: "slot", path: "/slots?type=request" },
 ];
-
+// Will probably remove search, just wanted to see what it would look like since you need to login to do anything
 // -- Icons
 const SearchIcon = ({ size = 17 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
