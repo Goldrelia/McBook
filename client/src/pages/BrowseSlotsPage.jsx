@@ -4,7 +4,7 @@ import Navbar from "../components/Navbar";
 import Card from "../components/Card";
 import Avatar from "../components/Avatar";
 import TimeDropdown from "../components/TimeDropdown";
-import { Search, Calendar, Clock, MapPin, Repeat, Check, Plus, X, Mail} from "lucide-react";
+import { Search, Calendar, Clock, MapPin, Repeat, Check, Plus, X, Mail, Send} from "lucide-react";
 
 const DEFAULT_ICON_SIZE = 13;
 
@@ -13,7 +13,7 @@ const MOCK_OWNERS = [
   {
     id: 1,
     name: "Joseph P Vybihal",
-    email: "joseph.vybihal@mcgill.ca",
+    email: "joseph.vybihaltest@mcgill.ca",
     role: "Professor",
     department: "COMP",
     slots: [
@@ -25,7 +25,7 @@ const MOCK_OWNERS = [
   {
     id: 2,
     name: "Derek Long",
-    email: "derek.long@mail.mcgill.ca",
+    email: "derek.long500@mail.mcgill.ca",
     role: "Teaching Assistant",
     department: "COMP",
     slots: [
@@ -36,7 +36,7 @@ const MOCK_OWNERS = [
   {
     id: 3,
     name: "Sara Alami",
-    email: "sara.alami@mail.mcgill.ca",
+    email: "sara.alami900@mail.mcgill.ca",
     role: "Teaching Assistant",
     department: "COMP",
     slots: [
@@ -252,14 +252,14 @@ function OwnerCard({ owner, delay, onReserve, onRequest }) {
               transition: "all 0.15s",
             }}
           >
-            <Mail size={DEFAULT_ICON_SIZE} /> Request
+            <Send size={DEFAULT_ICON_SIZE} /> Request
           </button>
         </div>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {owner.slots.map(slot => (
-          <SlotRow key={slot.id} slot={slot} onReserve={() => onReserve(slot)} />
+          <SlotRow key={slot.id} slot={slot} ownerEmail={owner.email} ownerName={owner.name} onReserve={() => onReserve(slot)} />
         ))}
       </div>
     </div>
@@ -267,8 +267,9 @@ function OwnerCard({ owner, delay, onReserve, onRequest }) {
 }
 
 // -- Slot Row
-function SlotRow({ slot, onReserve }) {
+function SlotRow({ slot, ownerEmail, ownerName, onReserve }) {
   const [btnHov, setBtnHov] = useState(false);
+  const [mailHov, setMailHov] = useState(false);
   const [rowHov, setRowHov] = useState(false);
 
   return (
@@ -299,25 +300,45 @@ function SlotRow({ slot, onReserve }) {
         </span>
       </div>
 
-      {slot.booked ? (
-        <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text3)", flexShrink: 0 }}>Reserved</span>
-      ) : (
-        <button
-          onClick={onReserve}
-          onMouseEnter={() => setBtnHov(true)}
-          onMouseLeave={() => setBtnHov(false)}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        {/* Direct email button */}
+        <a
+          href={`mailto:${ownerEmail}?subject=Re: Office Hours — ${slot.day} ${slot.time}`}
+          onMouseEnter={() => setMailHov(true)}
+          onMouseLeave={() => setMailHov(false)}
           style={{
-            padding: "5px 14px", borderRadius: 6, flexShrink: 0,
-            background: btnHov ? "var(--red)" : "transparent",
-            color: btnHov ? "#fff" : "var(--red)",
-            border: "1px solid " + (btnHov ? "var(--red)" : "rgba(232,25,44,0.35)"),
+            display: "flex", alignItems: "center", gap: 4,
+            padding: "5px 10px", borderRadius: 6,
+            border: "1px solid " + (mailHov ? "var(--text3)" : "var(--border)"),
+            background: "transparent",
+            color: mailHov ? "var(--text)" : "var(--text2)",
             fontSize: 12, fontWeight: 600, fontFamily: "inherit",
-            cursor: "pointer", transition: "all 0.15s",
+            cursor: "pointer", textDecoration: "none", transition: "all 0.15s",
           }}
         >
-          Reserve
-        </button>
-      )}
+          <Mail size={DEFAULT_ICON_SIZE} />
+        </a>
+
+        {slot.booked ? (
+          <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text3)" }}>Reserved</span>
+        ) : (
+          <button
+            onClick={onReserve}
+            onMouseEnter={() => setBtnHov(true)}
+            onMouseLeave={() => setBtnHov(false)}
+            style={{
+              padding: "5px 14px", borderRadius: 6,
+              background: btnHov ? "var(--red)" : "transparent",
+              color: btnHov ? "#fff" : "var(--red)",
+              border: "1px solid " + (btnHov ? "var(--red)" : "rgba(232,25,44,0.35)"),
+              fontSize: 12, fontWeight: 600, fontFamily: "inherit",
+              cursor: "pointer", transition: "all 0.15s",
+            }}
+          >
+            Reserve
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -450,7 +471,7 @@ function RequestMeetingModal({ owners, preselectedOwner, onClose, onSubmit }) {
               onClick={() => { if (isValid) onSubmit(form); }}
               style={{ padding: "7px 14px", borderRadius: 7, border: "none", background: "var(--red)", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: isValid ? "pointer" : "not-allowed", opacity: isValid ? 1 : 0.5, display: "flex", alignItems: "center", gap: 6 }}
             >
-              <Mail size={DEFAULT_ICON_SIZE}/> Send request
+              <Send size={DEFAULT_ICON_SIZE}/> Send request
             </button>
           </div>
         </div>
