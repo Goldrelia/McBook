@@ -1,6 +1,7 @@
 // Authors:
 // Aurelia Bouliane - 261118164
-// Houman Azari - 261055604
+// Hooman Azari - 261055604
+
 import { useState } from "react";
 import { Calendar, Clock, MapPin, Mail, Trash2, Link, Eye, EyeOff, Users } from "lucide-react";
 import Btn from "../../components/Btn";

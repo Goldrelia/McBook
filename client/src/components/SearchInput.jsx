@@ -1,6 +1,6 @@
 // Authors:
 // Aurelia Bouliane - 261118164
-// Houman Azari - 261055604
+// Hooman Azari - 261055604
 import { Search } from "lucide-react";
 
 // -- SearchInput

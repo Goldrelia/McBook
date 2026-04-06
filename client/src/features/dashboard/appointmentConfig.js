@@ -1,6 +1,6 @@
 // Authors:
 // Aurelia Bouliane - 261118164
-// Houman Azari - 261055604
+// Hooman Azari - 261055604
 
 export const MOCK_APPOINTMENTS = [
   {
@@ -11,7 +11,7 @@ export const MOCK_APPOINTMENTS = [
     time: "10:00 AM – 11:00 AM",
     location: "Trottier 3090",
     owner: "Joseph P Vybihal",
-    ownerEmail: "joseph.vybihal@mcgill.ca",
+    ownerEmail: "joseph.vybihal123@mcgill.ca",
     status: "confirmed",
   },
   {
@@ -22,7 +22,7 @@ export const MOCK_APPOINTMENTS = [
     time: "1:00 PM – 2:00 PM",
     location: "Online (Zoom)",
     owner: "Derek Long",
-    ownerEmail: "derek.long@mail.mcgill.ca",
+    ownerEmail: "derek.long123@mail.mcgill.ca",
     status: "confirmed",
   },
   {
@@ -33,7 +33,7 @@ export const MOCK_APPOINTMENTS = [
     time: "3:00 PM – 4:00 PM",
     location: "McConnell 103",
     owner: "Joseph P Vybihal",
-    ownerEmail: "joseph.vybihal@mcgill.ca",
+    ownerEmail: "joseph.vybihal123@mcgill.ca",
     status: "confirmed",
   },
   {
@@ -44,7 +44,7 @@ export const MOCK_APPOINTMENTS = [
     time: "TBD",
     location: "TBD",
     owner: "Joseph P Vybihal",
-    ownerEmail: "joseph.vybihal@mcgill.ca",
+    ownerEmail: "joseph.vybihal123@mcgill.ca",
     status: "pending",
   },
 ];

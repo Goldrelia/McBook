@@ -1,6 +1,6 @@
 // Authors:
 // Aurelia Bouliane - 261118164
-// Houman Azari - 261055604
+// Hooman Azari - 261055604
 
 export const MOCK_SLOTS = [
   {
@@ -15,8 +15,8 @@ export const MOCK_SLOTS = [
     recurrence_weeks: 13,
     invite_token: "abc123xyz",
     bookings: [
-      { id: 1, user: "Alice Martin", email: "alice.martin@mail.mcgill.ca" },
-      { id: 2, user: "Bob Nguyen",   email: "bob.nguyen@mail.mcgill.ca" },
+      { id: 1, user: "Alice Martin", email: "alice.martin123@mail.mcgill.ca" },
+      { id: 2, user: "Bob Nguyen",   email: "bob.nguyen123@mail.mcgill.ca" },
     ],
   },
   {
@@ -57,7 +57,7 @@ export const MOCK_REQUESTS = [
   {
     id: 1,
     user: "Carol Lee",
-    email: "carol.lee@mail.mcgill.ca",
+    email: "carol.lee123@mail.mcgill.ca",
     message: "Hi Prof, I'd like to discuss my midterm feedback and talk about the project requirements.",
     status: "pending",
     created_at: "March 24, 2026",
@@ -65,7 +65,7 @@ export const MOCK_REQUESTS = [
   {
     id: 2,
     user: "David Kim",
-    email: "david.kim@mail.mcgill.ca",
+    email: "david.kim123@mail.mcgill.ca",
     message: "I'm having trouble with Assignment 3 and would love 15 minutes to go over it.",
     status: "pending",
     created_at: "March 25, 2026",
@@ -73,7 +73,7 @@ export const MOCK_REQUESTS = [
   {
     id: 3,
     user: "Emma Tremblay",
-    email: "emma.tremblay@mail.mcgill.ca",
+    email: "emma.tremblay123@mail.mcgill.ca",
     message: "Could we meet to discuss potential research opportunities?",
     status: "accepted",
     created_at: "March 20, 2026",
