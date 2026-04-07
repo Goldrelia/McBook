@@ -11,10 +11,12 @@ import Card from "../components/Card";
 import SearchInput from "../components/SearchInput";
 import AppointmentCard from "../features/dashboard/AppointmentCard";
 import { MOCK_APPOINTMENTS } from "../features/dashboard/appointmentConfig";
+import useWindowWidth from "../hooks/useWindowWidth";
 
 // -- Dashboard
 export default function Dashboard() {
   const navigate = useNavigate();
+  const isMobile = useWindowWidth() < 768;
   const [theme, setTheme]           = useState(() => localStorage.getItem("mcbook-theme") || "light");
   const [appointments, setAppointments] = useState(MOCK_APPOINTMENTS);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -81,7 +83,7 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 280px", gap: 20, alignItems: "start" }}>
 
           {/* Left — appointments list */}
           <div>
@@ -97,7 +99,9 @@ export default function Dashboard() {
               display: "flex", gap: 2,
               background: "var(--surface)", border: "1px solid var(--border)",
               borderRadius: 9, padding: 3, marginBottom: 14,
-              boxShadow: "var(--shadow-sm)", width: "fit-content",
+              boxShadow: "var(--shadow-sm)",
+              width: isMobile ? "100%" : "fit-content",
+              overflowX: "auto",
             }}>
               {[
                 { key: "all",          label: "All" },
@@ -148,7 +152,8 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Right — sidebar */}
+          {/* Right — sidebar, hidden on mobile */}
+          {!isMobile && (
           <div style={{ paddingTop: 46 }}>
             <Card style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)", marginBottom: 12, letterSpacing: "-0.01em" }}>
@@ -180,6 +185,7 @@ export default function Dashboard() {
               ))}
             </Card>
           </div>
+          )}
         </div>
       </div>
     </div>

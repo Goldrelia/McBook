@@ -13,6 +13,7 @@ import SlotCard from "../features/owner/SlotCard";
 import RequestCard from "../features/owner/RequestCard";
 import { CreateSlotModal, FinalizeGroupModal } from "../features/owner/CreateSlotModal";
 import { MOCK_SLOTS, MOCK_REQUESTS } from "../features/owner/mockData";
+import useWindowWidth from "../hooks/useWindowWidth";
 
 const TABS = [
   { key: "slots",    label: "My Slots" },
@@ -31,6 +32,7 @@ function SectionTitle({ children }) {
 // -- OwnerDashboard
 export default function OwnerDashboard() {
   const navigate = useNavigate();
+  const isMobile = useWindowWidth() < 768;
   const [theme, setTheme]           = useState(() => localStorage.getItem("mcbook-theme") || "light");
   const [tab, setTab]               = useState("slots");
   const [slots, setSlots]           = useState(MOCK_SLOTS);
@@ -135,7 +137,7 @@ export default function OwnerDashboard() {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: "flex", gap: 2, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 9, padding: 3, marginBottom: 20, width: "fit-content", boxShadow: "var(--shadow-sm)" }}>
+        <div style={{ display: "flex", gap: 2, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 9, padding: 3, marginBottom: 20, width: isMobile ? "100%" : "fit-content", overflowX: "auto", boxShadow: "var(--shadow-sm)" }}>
           {TABS.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)} style={{
               padding: "5px 14px", borderRadius: 6, border: "none",
@@ -158,12 +160,12 @@ export default function OwnerDashboard() {
           value={search}
           onChange={setSearch}
           placeholder={tab === "slots" ? "Search by slot title or student name…" : "Search by student name or email…"}
-          style={{ marginBottom: 20, maxWidth: 400 }}
+          style={{ marginBottom: 20, maxWidth: isMobile ? "100%" : 400 }}
         />
 
         {/* Slots tab */}
         {tab === "slots" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 20, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 260px", gap: 20, alignItems: "start" }}>
             <div>
               {filteredSlots.length === 0 ? (
                 <Card style={{ textAlign: "center", padding: "40px 24px", color: "var(--text3)", fontSize: 13.5 }}>
@@ -188,6 +190,7 @@ export default function OwnerDashboard() {
                 ))
               )}
             </div>
+            {!isMobile && (
             <div>
               <Card style={{ marginBottom: 14 }}>
                 <SectionTitle>Summary</SectionTitle>
@@ -213,12 +216,13 @@ export default function OwnerDashboard() {
                 </Btn>
               </Card>
             </div>
+            )}
           </div>
         )}
 
         {/* Requests tab */}
         {tab === "requests" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 20, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 260px", gap: 20, alignItems: "start" }}>
             <div>
               {filteredRequests.length === 0 ? (
                 <Card style={{ textAlign: "center", padding: "40px 24px", color: "var(--text3)", fontSize: 13.5 }}>
@@ -236,6 +240,7 @@ export default function OwnerDashboard() {
                 ))
               )}
             </div>
+            {!isMobile && (
             <div>
               <Card>
                 <SectionTitle>Requests summary</SectionTitle>
@@ -251,6 +256,7 @@ export default function OwnerDashboard() {
                 ))}
               </Card>
             </div>
+            )}
           </div>
         )}
       </div>

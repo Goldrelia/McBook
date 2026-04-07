@@ -1,10 +1,11 @@
 // Authors: 
 // Aurelia Bouliane - 261118164
-// Hooman Azari - 261055604
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, Menu, X } from "lucide-react";
 import logo from "../assets/logo.png";
+import useWindowWidth from "../hooks/useWindowWidth";
 
 // -- Navbar
 // Props:
@@ -16,20 +17,18 @@ import logo from "../assets/logo.png";
 //                 intended for the landing page
 export default function Navbar({ theme, onToggle, navLinks = [], actions = [], transparent = false }) {
   const navigate = useNavigate();
+  const isMobile = useWindowWidth() < 768;
+  const [open, setOpen] = useState(false);
 
   const navStyle = transparent
     ? {
       position: "sticky", top: 0, zIndex: 100,
-      height: 64,
-      display: "flex", alignItems: "center",
-      padding: "0 28px",
-      background: "transparent",
-      gap: 12,
+      height: 64, display: "flex", alignItems: "center",
+      padding: "0 28px", background: "transparent", gap: 12,
     }
     : {
       position: "sticky", top: 0, zIndex: 100,
-      height: 64,
-      display: "flex", alignItems: "center",
+      height: 64, display: "flex", alignItems: "center",
       padding: "0 28px",
       background: theme === "light" ? "rgba(238,240,244,0.92)" : "rgba(13,15,20,0.88)",
       backdropFilter: "blur(14px)",
@@ -38,52 +37,116 @@ export default function Navbar({ theme, onToggle, navLinks = [], actions = [], t
     };
 
   return (
-    <nav style={navStyle}>
-      {/* Logo + wordmark */}
-      <button
-        onClick={() => navigate("/")}
-        style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}
-        aria-label="Home"
-      >
-        <img src={logo} alt="McBook logo" height={50} />
-      </button>
-
-      <span style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em" }}>
-        McBook
-      </span>
-
-      {/* Center nav links */}
-      {navLinks.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 20 }}>
-          {navLinks.map((link, i) => (
-            <NavLink key={i} onClick={link.onClick} active={link.active}>
-              {link.label}
-            </NavLink>
-          ))}
-        </div>
-      )}
-
-      {/* Right — theme toggle + action buttons */}
-      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
+    <>
+      <nav style={navStyle}>
+        {/* Logo + wordmark */}
         <button
-          onClick={onToggle}
-          style={{
-            background: "none", border: "none", cursor: "pointer",
-            color: "var(--text2)", display: "flex", alignItems: "center",
-            padding: 4, borderRadius: 6,
-          }}
-          title="Toggle theme"
+          onClick={() => navigate("/")}
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}
+          aria-label="Home"
         >
-          {theme === "light" ? <Moon size={18}/> : <Sun size={18}/>}
+          <img src={logo} alt="McBook logo" height={50} />
         </button>
 
-        {actions.map((action, i) => (
-          <NavBtn key={i} onClick={action.onClick} variant={action.variant || "outline"}>
-            {action.label}
-          </NavBtn>
-        ))}
-      </div>
-    </nav>
+        <span style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em" }}>
+          McBook
+        </span>
+
+        {/* Center nav links — desktop only */}
+        {!isMobile && navLinks.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 20 }}>
+            {navLinks.map((link, i) => (
+              <NavLink key={i} onClick={link.onClick} active={link.active}>
+                {link.label}
+              </NavLink>
+            ))}
+          </div>
+        )}
+
+        {/* Right — theme toggle + buttons */}
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
+          <button
+            onClick={onToggle}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", display: "flex", alignItems: "center", padding: 4, borderRadius: 6 }}
+            title="Toggle theme"
+          >
+            {theme === "light" ? <Moon size={18}/> : <Sun size={18}/>}
+          </button>
+
+          {/* Desktop action buttons */}
+          {!isMobile && actions.map((action, i) => (
+            <NavBtn key={i} onClick={action.onClick} variant={action.variant || "outline"}>
+              {action.label}
+            </NavBtn>
+          ))}
+
+          {/* Hamburger — mobile only */}
+          {isMobile && (
+            <button
+              onClick={() => setOpen(o => !o)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", display: "flex", alignItems: "center", padding: 4, borderRadius: 6 }}
+              aria-label="Open menu"
+            >
+              <Menu size={22} />
+            </button>
+          )}
+        </div>
+      </nav>
+
+      {/* Mobile sidebar */}
+      {isMobile && open && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={() => setOpen(false)}
+            style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)" }}
+          />
+          {/* Panel */}
+          <div style={{
+            position: "fixed", top: 0, right: 0, bottom: 0, width: 270, zIndex: 201,
+            background: theme === "light" ? "#fff" : "var(--surface)",
+            borderLeft: "1px solid var(--border)",
+            boxShadow: "-8px 0 32px rgba(0,0,0,0.15)",
+            display: "flex", flexDirection: "column",
+          }}>
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 20px 16px", borderBottom: "1px solid var(--border)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <img src={logo} alt="McBook logo" height={36} />
+                <span style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em" }}>McBook</span>
+              </div>
+              <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text3)", display: "flex", padding: 4 }} aria-label="Close menu">
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Nav links */}
+            {navLinks.length > 0 && (
+              <div style={{ padding: "12px", borderBottom: "1px solid var(--border)" }}>
+                {navLinks.map((link, i) => (
+                  <button key={i} onClick={() => { link.onClick(); setOpen(false); }}
+                    style={{ width: "100%", textAlign: "left", padding: "11px 12px", borderRadius: 8, border: "none", background: link.active ? "var(--red-light)" : "transparent", color: link.active ? "var(--red)" : "var(--text2)", fontWeight: link.active ? 700 : 500, fontSize: 15, fontFamily: "inherit", cursor: "pointer", display: "block", marginBottom: 2 }}>
+                    {link.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Action buttons */}
+            {actions.length > 0 && (
+              <div style={{ padding: "12px" }}>
+                {actions.map((action, i) => (
+                  <button key={i} onClick={() => { action.onClick(); setOpen(false); }}
+                    style={{ width: "100%", textAlign: "left", padding: "11px 12px", borderRadius: 8, border: "none", background: action.variant === "red" ? "var(--red)" : "transparent", color: action.variant === "red" ? "#fff" : "var(--text2)", fontWeight: 600, fontSize: 15, fontFamily: "inherit", cursor: "pointer", display: "block", marginBottom: 2 }}>
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </>
   );
 }
 
