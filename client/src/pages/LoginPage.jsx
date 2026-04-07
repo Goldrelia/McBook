@@ -64,21 +64,39 @@ export default function LoginPage() {
       // localStorage.setItem("mcbook-token", data.token);
       // localStorage.setItem("mcbook-role", data.role);
       // navigate(data.role === "owner" ? "/owner/dashboard" : "/dashboard");
+      
 
-      // -- Mock: simulate login
-      await new Promise(r => setTimeout(r, 800));
-      localStorage.setItem("mcbook-token", "mock-token-123");
-      localStorage.setItem("mcbook-email", email);
-      // Treat @mcgill.ca as professor/owner, @mail.mcgill.ca as student
-      const role = email.endsWith("@mcgill.ca") ? "owner" : "student";
-      localStorage.setItem("mcbook-role", role);
-      navigate(role === "owner" ? "/owner/dashboard" : "/dashboard");
+    //   // -- Mock: simulate login
+    //   await new Promise(r => setTimeout(r, 800));
+    //   localStorage.setItem("mcbook-token", "mock-token-123");
+    //   localStorage.setItem("mcbook-email", email);
+    //   // Treat @mcgill.ca as professor/owner, @mail.mcgill.ca as student
+    //   const role = email.endsWith("@mcgill.ca") ? "owner" : "student";
+    //   localStorage.setItem("mcbook-role", role);
+    //   navigate(role === "owner" ? "/owner/dashboard" : "/dashboard");
+    // } catch (err) {
+    //   setError(err.message || "Something went wrong. Please try again.");
+    // } finally {
+    //   setLoading(false);
+    // }
+
+      // Connecting client to server (Derek)
+      const res = await fetch('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+      localStorage.setItem('mcbook-token', data.token);
+      localStorage.setItem('mcbook-role', data.role);
+      navigate(data.role === 'owner' ? '/owner/dashboard' : '/dashboard');
     } catch (err) {
-      setError(err.message || "Something went wrong. Please try again.");
+      setError(err.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
-  }
+}
 
   const borderColor = (valid) => {
     if (valid === true) return "#10b981";
@@ -209,3 +227,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
