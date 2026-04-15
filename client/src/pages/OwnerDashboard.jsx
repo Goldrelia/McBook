@@ -1,6 +1,8 @@
 // Authors:
 // Aurelia Bouliane - 261118164
 // Hooman Azari - 261055604
+// Derek Long - 261161918
+// Wei-Sen Wang - 261116291
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -49,10 +51,33 @@ export default function OwnerDashboard() {
   }, [theme]);
 
   function toggleStatus(id) {
+    const newStatus = slots.find(s => s.id == id).status === "active" ? "private" : "active"; 
     setSlots(prev => prev.map(s =>
-      s.id === id ? { ...s, status: s.status === "active" ? "private" : "active" } : s
+      s.id === id ? { ...s, status: s.status === newStatus } : s
     ));
     // TODO: PATCH /api/slots/:id { status }
+    fetch(`/api/slots/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ status: newStatus })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to update status');
+      }
+    })
+    .catch(error => {
+    console.error('Error updating slot status:', error);
+    // Revert the local state on error
+    setSlots(prev => prev.map(s =>
+      s.id === id ? { ...s, status: newStatus === "active" ? "private" : "active" } : s
+    ));
+    // Notify the user
+    console.log("There was an error during slot update.");
+  });
+    
   }
 
   function deleteSlot(id) {
