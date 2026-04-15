@@ -81,7 +81,7 @@ export default function LoginPage() {
     // }
 
       // Connecting client to server (Derek)
-      const res = await fetch('http://localhost:3000/api/auth/login', {
+      const res = await fetch('http://127.0.0.1:3000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
