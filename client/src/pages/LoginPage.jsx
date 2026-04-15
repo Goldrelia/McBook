@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
-import { Eye, EyeOff} from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 
 const DEFAULT_ICON_SIZE = 16;
 const MCGILL_DOMAINS = ["@mcgill.ca", "@mail.mcgill.ca"];
@@ -64,21 +64,21 @@ export default function LoginPage() {
       // localStorage.setItem("mcbook-token", data.token);
       // localStorage.setItem("mcbook-role", data.role);
       // navigate(data.role === "owner" ? "/owner/dashboard" : "/dashboard");
-      
 
-    //   // -- Mock: simulate login
-    //   await new Promise(r => setTimeout(r, 800));
-    //   localStorage.setItem("mcbook-token", "mock-token-123");
-    //   localStorage.setItem("mcbook-email", email);
-    //   // Treat @mcgill.ca as professor/owner, @mail.mcgill.ca as student
-    //   const role = email.endsWith("@mcgill.ca") ? "owner" : "student";
-    //   localStorage.setItem("mcbook-role", role);
-    //   navigate(role === "owner" ? "/owner/dashboard" : "/dashboard");
-    // } catch (err) {
-    //   setError(err.message || "Something went wrong. Please try again.");
-    // } finally {
-    //   setLoading(false);
-    // }
+
+      //   // -- Mock: simulate login
+      //   await new Promise(r => setTimeout(r, 800));
+      //   localStorage.setItem("mcbook-token", "mock-token-123");
+      //   localStorage.setItem("mcbook-email", email);
+      //   // Treat @mcgill.ca as professor/owner, @mail.mcgill.ca as student
+      //   const role = email.endsWith("@mcgill.ca") ? "owner" : "student";
+      //   localStorage.setItem("mcbook-role", role);
+      //   navigate(role === "owner" ? "/owner/dashboard" : "/dashboard");
+      // } catch (err) {
+      //   setError(err.message || "Something went wrong. Please try again.");
+      // } finally {
+      //   setLoading(false);
+      // }
 
       // Connecting client to server (Derek)
       const res = await fetch('http://localhost:3000/api/auth/login', {
@@ -96,7 +96,7 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-}
+  }
 
   const borderColor = (valid) => {
     if (valid === true) return "#10b981";
@@ -188,7 +188,7 @@ export default function LoginPage() {
                   }}
                   tabIndex={-1}
                 >
-                  {showPw ? <EyeOff size={DEFAULT_ICON_SIZE}/> : <Eye size={DEFAULT_ICON_SIZE}/>}
+                  {showPw ? <EyeOff size={DEFAULT_ICON_SIZE} /> : <Eye size={DEFAULT_ICON_SIZE} />}
                 </button>
               </div>
             </div>

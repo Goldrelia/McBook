@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-
+#TODO change the formatting into MySQL instead of sql lite
 -- SLOTS
 -- type:   'request' (Type 1), 'group' (Type 2), 'office_hours' (Type 3)
 -- status: 'private' (owner only) or 'active' (visible to all)

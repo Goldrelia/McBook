@@ -18,7 +18,7 @@ import { MOCK_SLOTS, MOCK_REQUESTS } from "../features/owner/mockData";
 import useWindowWidth from "../hooks/useWindowWidth";
 
 const TABS = [
-  { key: "slots",    label: "My Slots" },
+  { key: "slots", label: "My Slots" },
   { key: "requests", label: "Meeting Requests" },
 ];
 
@@ -35,14 +35,14 @@ function SectionTitle({ children }) {
 export default function OwnerDashboard() {
   const navigate = useNavigate();
   const isMobile = useWindowWidth() < 768;
-  const [theme, setTheme]           = useState(() => localStorage.getItem("mcbook-theme") || "light");
-  const [tab, setTab]               = useState("slots");
-  const [slots, setSlots]           = useState(MOCK_SLOTS);
-  const [requests, setRequests]     = useState(MOCK_REQUESTS);
-  const [search, setSearch]         = useState("");
+  const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
+  const [tab, setTab] = useState("slots");
+  const [slots, setSlots] = useState(MOCK_SLOTS);
+  const [requests, setRequests] = useState(MOCK_REQUESTS);
+  const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [deleteSlotId, setDeleteSlotId] = useState(null);
-  const [copiedToken, setCopiedToken]   = useState(null);
+  const [copiedToken, setCopiedToken] = useState(null);
   const [finalizeSlot, setFinalizeSlot] = useState(null);
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export default function OwnerDashboard() {
   }, [theme]);
 
   function toggleStatus(id) {
-    const newStatus = slots.find(s => s.id == id).status === "active" ? "private" : "active"; 
+    const newStatus = slots.find(s => s.id == id).status === "active" ? "private" : "active";
     setSlots(prev => prev.map(s =>
       s.id === id ? { ...s, status: s.status === newStatus } : s
     ));
@@ -63,31 +63,50 @@ export default function OwnerDashboard() {
       },
       body: JSON.stringify({ status: newStatus })
     })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('Failed to update status');
-      }
-    })
-    .catch(error => {
-    console.error('Error updating slot status:', error);
-    // Revert the local state on error
-    setSlots(prev => prev.map(s =>
-      s.id === id ? { ...s, status: newStatus === "active" ? "private" : "active" } : s
-    ));
-    // Notify the user
-    console.log("There was an error during slot update.");
-  });
-    
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to update status');
+        }
+      })
+      .catch(error => {
+        console.error('Error updating slot status:', error);
+        // Revert the local state on error
+        setSlots(prev => prev.map(s =>
+          s.id === id ? { ...s, status: newStatus === "active" ? "private" : "active" } : s
+        ));
+        // Notify the user
+        console.log("There was an error during slot update.");
+      });
+
   }
 
-  function deleteSlot(id) {
+  async function deleteSlot(id) {
+    //we are making the function async, cleaner error handling
     const slot = slots.find(s => s.id === id);
+    //here we are basically notifying users
     slot.bookings.forEach(b => {
       window.open(`mailto:${b.email}?subject=Booking Cancelled: ${encodeURIComponent(slot.title)}&body=Hi ${b.user.split(" ")[0]},%0A%0AYour booking for "${slot.title}" has been cancelled.%0A%0AApologies for any inconvenience.`);
     });
+
+    const oldSlots = slots; //this is a backup save in case delete fails
     setSlots(prev => prev.filter(s => s.id !== id));
     setDeleteSlotId(null);
     // TODO: DELETE /api/slots/:id
+
+    try {
+      const res = await fetch(`http://localhost:3000/api/slots/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to delete slot");
+      }
+    } catch (err) {
+      console.error("Error deleting slot:", err);
+      setSlots(oldSlots); // restore on failure
+    }
+
+
   }
 
   function copyInviteLink(token) {
@@ -106,18 +125,38 @@ export default function OwnerDashboard() {
     // TODO: PATCH /api/meeting-requests/:id { status }
   }
 
-  function addSlot(slot) {
-    setSlots(prev => [...prev, { ...slot, id: Date.now(), bookings: [], invite_token: Math.random().toString(36).slice(2, 10) }]);
-    setShowCreate(false);
-    // TODO: POST /api/slots
-  }
 
+  async function addSlot(slot) {
+    try {
+      const res = await fetch("http://localhost:3000/api/slots", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(slot),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to create slot");
+      }
+
+      const newSlot = await res.json();
+
+      // Use backend response instead of fake data
+      setSlots(prev => [...prev, newSlot]);
+      setShowCreate(false);
+
+    } catch (err) {
+      console.error("Error creating slot:", err);
+    }
+  }
   function finalizeGroupSlot(slotId, selectedGroupSlot, isRecurring, recurrenceWeeks) {
     setSlots(prev => prev.map(s =>
       s.id === slotId ? { ...s, finalized: true, date: selectedGroupSlot.date, time: selectedGroupSlot.time, is_recurring: isRecurring, recurrence_weeks: recurrenceWeeks } : s
     ));
     setFinalizeSlot(null);
     // TODO: POST /api/slots/finalize
+
   }
 
   const pendingCount = requests.filter(r => r.status === "pending").length;
@@ -142,11 +181,11 @@ export default function OwnerDashboard() {
         onToggle={() => setTheme(t => t === "light" ? "dark" : "light")}
         navLinks={[
           { label: "Owner Dashboard", onClick: () => navigate("/owner/dashboard"), active: true },
-          { label: "About Us",        onClick: () => navigate("/about") },
+          { label: "About Us", onClick: () => navigate("/about") },
         ]}
         actions={[
-          { label: "+ New slot", variant: "red",    onClick: () => setShowCreate(true) },
-          { label: "Log out",    variant: "outline", onClick: () => { localStorage.removeItem("mcbook-token"); navigate("/login"); } },
+          { label: "+ New slot", variant: "red", onClick: () => setShowCreate(true) },
+          { label: "Log out", variant: "outline", onClick: () => { localStorage.removeItem("mcbook-token"); navigate("/login"); } },
         ]}
       />
 
@@ -216,31 +255,31 @@ export default function OwnerDashboard() {
               )}
             </div>
             {!isMobile && (
-            <div>
-              <Card style={{ marginBottom: 14 }}>
-                <SectionTitle>Summary</SectionTitle>
-                {[
-                  { label: "Total slots",    val: slots.length },
-                  { label: "Active",         val: slots.filter(s => s.status === "active").length },
-                  { label: "Private",        val: slots.filter(s => s.status === "private").length },
-                  { label: "Total bookings", val: slots.reduce((a, s) => a + s.bookings.length, 0) },
-                ].map(row => (
-                  <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
-                    <span style={{ color: "var(--text2)" }}>{row.label}</span>
-                    <span style={{ fontWeight: 700, color: "var(--text)" }}>{row.val}</span>
-                  </div>
-                ))}
-              </Card>
-              <Card>
-                <SectionTitle>Quick actions</SectionTitle>
-                <Btn variant="red" onClick={() => setShowCreate(true)} style={{ width: "100%", justifyContent: "center", marginBottom: 8 }}>
-                  <Plus size={14} /> New slot
-                </Btn>
-                <Btn variant="outline" onClick={() => setTab("requests")} style={{ width: "100%", justifyContent: "center" }}>
-                  View requests {pendingCount > 0 && `(${pendingCount})`}
-                </Btn>
-              </Card>
-            </div>
+              <div>
+                <Card style={{ marginBottom: 14 }}>
+                  <SectionTitle>Summary</SectionTitle>
+                  {[
+                    { label: "Total slots", val: slots.length },
+                    { label: "Active", val: slots.filter(s => s.status === "active").length },
+                    { label: "Private", val: slots.filter(s => s.status === "private").length },
+                    { label: "Total bookings", val: slots.reduce((a, s) => a + s.bookings.length, 0) },
+                  ].map(row => (
+                    <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
+                      <span style={{ color: "var(--text2)" }}>{row.label}</span>
+                      <span style={{ fontWeight: 700, color: "var(--text)" }}>{row.val}</span>
+                    </div>
+                  ))}
+                </Card>
+                <Card>
+                  <SectionTitle>Quick actions</SectionTitle>
+                  <Btn variant="red" onClick={() => setShowCreate(true)} style={{ width: "100%", justifyContent: "center", marginBottom: 8 }}>
+                    <Plus size={14} /> New slot
+                  </Btn>
+                  <Btn variant="outline" onClick={() => setTab("requests")} style={{ width: "100%", justifyContent: "center" }}>
+                    View requests {pendingCount > 0 && `(${pendingCount})`}
+                  </Btn>
+                </Card>
+              </div>
             )}
           </div>
         )}
@@ -266,21 +305,21 @@ export default function OwnerDashboard() {
               )}
             </div>
             {!isMobile && (
-            <div>
-              <Card>
-                <SectionTitle>Requests summary</SectionTitle>
-                {[
-                  { label: "Pending",  val: requests.filter(r => r.status === "pending").length,  color: "#f59e0b" },
-                  { label: "Accepted", val: requests.filter(r => r.status === "accepted").length, color: "#10b981" },
-                  { label: "Declined", val: requests.filter(r => r.status === "declined").length, color: "var(--text3)" },
-                ].map(row => (
-                  <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
-                    <span style={{ color: "var(--text2)" }}>{row.label}</span>
-                    <span style={{ fontWeight: 700, color: row.color }}>{row.val}</span>
-                  </div>
-                ))}
-              </Card>
-            </div>
+              <div>
+                <Card>
+                  <SectionTitle>Requests summary</SectionTitle>
+                  {[
+                    { label: "Pending", val: requests.filter(r => r.status === "pending").length, color: "#f59e0b" },
+                    { label: "Accepted", val: requests.filter(r => r.status === "accepted").length, color: "#10b981" },
+                    { label: "Declined", val: requests.filter(r => r.status === "declined").length, color: "var(--text3)" },
+                  ].map(row => (
+                    <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
+                      <span style={{ color: "var(--text2)" }}>{row.label}</span>
+                      <span style={{ fontWeight: 700, color: row.color }}>{row.val}</span>
+                    </div>
+                  ))}
+                </Card>
+              </div>
             )}
           </div>
         )}
