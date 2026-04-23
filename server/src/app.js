@@ -8,14 +8,15 @@ const pool = require('./config/db');
 const app = express();
 const port = process.env.PORT || 3000;
 
-
 // Enabling CORS in backend to request resources from client + JSON parsing 
 const cors = require('cors');
 app.use(cors());
-app.use(express.json())
+app.use(express.json());
 
+// Import API routes
+const apiRoutes = require('./routes/api');
 
-// Adding API routes, connecting login from frontend to backend
+// ==================== AUTHENTICATION ====================
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -27,14 +28,16 @@ app.post('/api/auth/login', async (req, res) => {
     const role = email.endsWith('@mcgill.ca') ? 'owner' : 'student';
 
     // Check if user exists
-    const [rows] = await pool.execute('SELECT id, password_hash FROM users WHERE email = ?', [email]);
+    const [rows] = await pool.execute('SELECT id, password_hash, role FROM users WHERE email = ?', [email]);
     let userId;
+    let userRole;
 
     if (rows.length === 0) {
       // Create new user
       const hashedPassword = await bcrypt.hash(password, 10);
       const [result] = await pool.execute('INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)', [email, hashedPassword, role]);
       userId = result.insertId;
+      userRole = role;
     } else {
       // Verify password
       const isValid = await bcrypt.compare(password, rows[0].password_hash);
@@ -42,18 +45,21 @@ app.post('/api/auth/login', async (req, res) => {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
       userId = rows[0].id;
+      userRole = rows[0].role;
     }
 
     // Generate JWT
-    const token = jwt.sign({ userId, role }, process.env.JWT_SECRET || 'your-secret-key', { expiresIn: '7d' });
+    const token = jwt.sign({ userId, role: userRole }, process.env.JWT_SECRET || 'your-secret-key', { expiresIn: '7d' });
 
-    res.json({ token, role });
+    res.json({ token, role: userRole, userId });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
+// Mount all API routes
+app.use('/api', apiRoutes);
 
 // Start the server
 app.listen(port, () => {

@@ -2,95 +2,158 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { Check, MapPin, UserRound } from "lucide-react";
+import { getSlotByInvite, submitAvailability, getMyAvailability } from "../services/api";
 
 const DEFAULT_ICON_SIZE = 13;
 
-// -- Mock data (replace with GET /api/slots/vote/:token)
-const MOCK_GROUP_SLOTS = {
-  "grp789abc": {
-    title: "Project Demo Scheduling",
-    owner: "Joseph P Vybihal",
-    ownerEmail: "joseph.vybihal@mcgill.ca",
-    location: "TBD",
-    slots: [
-      { id: 1, date: "Monday, April 7", time: "2:00pm – 3:00pm", votes: 3 },
-      { id: 2, date: "Monday, April 7", time: "5:00pm – 6:00pm", votes: 1 },
-      { id: 3, date: "Tuesday, April 8", time: "9:00am – 10:00am", votes: 5 },
-    ],
-  },
-};
-
-// -- VotePage
 export default function VotePage() {
   const { token } = useParams();
   const navigate = useNavigate();
   const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
   const [selected, setSelected] = useState(new Set());
   const [submitted, setSubmitted] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-
-  const data = MOCK_GROUP_SLOTS[token];
+  const [loading, setLoading] = useState(true);  
+  const [data, setData] = useState(null);  
+  const [error, setError] = useState(null);  
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("mcbook-theme", theme);
   }, [theme]);
 
-  function toggleSlot(id) {
+  useEffect(() => {
+    loadSlotData();
+  }, [token]);
+
+  async function loadSlotData() {
+    try {
+      const slotData = await getSlotByInvite(token);
+      setData(slotData);
+      
+      // Check if user is logged in and load their previous votes
+      if (localStorage.getItem('mcbook-token')) {
+        try {
+          const myVotes = await getMyAvailability(slotData.id);
+          // Convert to Set of selected times
+          const votedTimes = new Set(myVotes);
+          setSelected(votedTimes);
+        } catch (err) {
+          // User hasn't voted yet or not logged in - that's okay
+          console.log('No previous votes found');
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load slot:', err);
+      setError(err.message || 'Failed to load invite');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function toggleSlot(time) {
     setSelected(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      next.has(time) ? next.delete(time) : next.add(time);
       return next;
     });
   }
 
-  function handleSubmit() {
-    if (!name.trim() || !email.trim() || selected.size === 0) return;
-    setSubmitted(true);
-    // TODO: POST /api/slots/vote/:token { name, email, slot_ids: [...selected] }
+  async function handleSubmit() {
+    if (selected.size === 0) {
+      alert('Please select at least one time slot');
+      return;
+    }
+
+    try {
+      await submitAvailability(data.id, Array.from(selected));
+      setSubmitted(true);
+    } catch (err) {
+      console.error('Error submitting availability:', err);
+      alert('Failed to submit availability. ' + (err.message || 'Please try again.'));
+    }
   }
 
-  const isValid = name.trim() && email.trim() && selected.size > 0;
+  const isValid = selected.size > 0;
 
-  // -- Not found
-  if (!data) return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', system-ui, sans-serif" }}>
-      <div style={{ textAlign: "center", padding: 40 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", marginBottom: 8 }}>Invite link not found</div>
-        <div style={{ fontSize: 14, color: "var(--text3)", marginBottom: 24 }}>This link may have expired or been removed.</div>
-        <button onClick={() => navigate("/")} style={{ background: "var(--red)", color: "#fff", border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>
-          Go home
-        </button>
+  // Loading state
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', system-ui, sans-serif" }}>
+        <div style={{ fontSize: 14, color: "var(--text3)" }}>Loading...</div>
       </div>
-    </div>
-  );
+    );
+  }
 
-  // -- Submitted confirmation
-  if (submitted) return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', system-ui, sans-serif" }}>
-      <div style={{ textAlign: "center", padding: 40, maxWidth: 400 }}>
-        <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(16,185,129,0.1)", border: "2px solid #10b981", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", color: "#10b981" }}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 6L9 17l-5-5" />
-          </svg>
+  // Not found / Error
+  if (error || !data) {
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', system-ui, sans-serif" }}>
+        <div style={{ textAlign: "center", padding: 40 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", marginBottom: 8 }}>Invite link not found</div>
+          <div style={{ fontSize: 14, color: "var(--text3)", marginBottom: 24 }}>
+            {error || 'This link may have expired or been removed.'}
+          </div>
+          <button onClick={() => navigate("/")} style={{ background: "var(--red)", color: "#fff", border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>
+            Go home
+          </button>
         </div>
-        <div style={{ fontSize: 20, fontWeight: 800, color: "var(--text)", marginBottom: 8, letterSpacing: "-0.02em" }}>Availability submitted!</div>
-        <div style={{ fontSize: 14, color: "var(--text3)", marginBottom: 6, lineHeight: 1.6 }}>
-          Thanks {name.split(" ")[0]}! Your availability has been recorded for <strong style={{ color: "var(--text2)" }}>{data.title}</strong>.
-        </div>
-        <div style={{ fontSize: 13.5, color: "var(--text3)", marginBottom: 24 }}>
-          You selected <strong style={{ color: "var(--text2)" }}>{selected.size}</strong> slot{selected.size !== 1 ? "s" : ""}. {data.owner} will finalize the time and you'll be notified.
-        </div>
-        <button onClick={() => navigate("/")} style={{ background: "var(--red)", color: "#fff", border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>
-          Back to McBook
-        </button>
       </div>
-    </div>
-  );
+    );
+  }
 
-  // -- Main vote page
+  // Submitted confirmation
+  if (submitted) {
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', system-ui, sans-serif" }}>
+        <div style={{ textAlign: "center", padding: 40, maxWidth: 400 }}>
+          <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(16,185,129,0.1)", border: "2px solid #10b981", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", color: "#10b981" }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "var(--text)", marginBottom: 8, letterSpacing: "-0.02em" }}>Availability submitted!</div>
+          <div style={{ fontSize: 14, color: "var(--text3)", marginBottom: 6, lineHeight: 1.6 }}>
+            Your availability has been recorded for <strong style={{ color: "var(--text2)" }}>{data.title}</strong>.
+          </div>
+          <div style={{ fontSize: 13.5, color: "var(--text3)", marginBottom: 24 }}>
+            You selected <strong style={{ color: "var(--text2)" }}>{selected.size}</strong> slot{selected.size !== 1 ? "s" : ""}. The owner will finalize the time and notify everyone.
+          </div>
+          <button onClick={() => navigate("/")} style={{ background: "var(--red)", color: "#fff", border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>
+            Back to McBook
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Create time slots for voting (simple version - just use start/end times)
+  // Aurelia: MAYBE?? For a real implementation, we would want the owner to specify multiple time options?
+  const timeSlots = [];
+  const startTime = new Date(data.start_time);
+  const endTime = new Date(data.end_time);
+  
+  // Generate hourly slots between start and end time
+  let currentTime = new Date(startTime);
+  while (currentTime < endTime) {
+    const nextTime = new Date(currentTime);
+    nextTime.setHours(currentTime.getHours() + 1);
+    
+    timeSlots.push({
+      time: currentTime.toISOString(),
+      display: currentTime.toLocaleString('en-US', { 
+        weekday: 'long',
+        month: 'long', 
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      })
+    });
+    
+    currentTime = nextTime;
+  }
+
+  // Main vote page
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "'Inter', system-ui, sans-serif" }}>
 
@@ -111,23 +174,9 @@ export default function VotePage() {
             {data.title}
           </h1>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", fontSize: 13, color: "var(--text2)" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 5 }}><UserRound size={DEFAULT_ICON_SIZE} /> {data.owner}</span>
-            {data.location !== "TBD" && <span style={{ display: "flex", alignItems: "center", gap: 5 }}><MapPin size={DEFAULT_ICON_SIZE} /> {data.location}</span>}
-          </div>
-        </div>
-
-        {/* Your info */}
-        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, padding: 18, boxShadow: "var(--shadow-sm)", marginBottom: 20 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)", marginBottom: 14, letterSpacing: "-0.01em" }}>Your information</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label className="mc-label">Full name *</label>
-              <input className="mc-input" placeholder="e.g. Alice Martin" value={name} onChange={e => setName(e.target.value)} />
-            </div>
-            <div>
-              <label className="mc-label">McGill email *</label>
-              <input className="mc-input" type="email" placeholder="name@mail.mcgill.ca" value={email} onChange={e => setEmail(e.target.value)} />
-            </div>
+            <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <UserRound size={DEFAULT_ICON_SIZE} /> {data.owner_email}
+            </span>
           </div>
         </div>
 
@@ -137,12 +186,12 @@ export default function VotePage() {
           <div style={{ fontSize: 12.5, color: "var(--text3)", marginBottom: 14 }}>You can select multiple slots</div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {data.slots.map(slot => {
-              const isSelected = selected.has(slot.id);
+            {timeSlots.map((slot, idx) => {
+              const isSelected = selected.has(slot.time);
               return (
                 <div
-                  key={slot.id}
-                  onClick={() => toggleSlot(slot.id)}
+                  key={idx}
+                  onClick={() => toggleSlot(slot.time)}
                   style={{
                     display: "flex", alignItems: "center", gap: 12,
                     padding: "13px 14px",
@@ -169,16 +218,7 @@ export default function VotePage() {
                   </div>
 
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>{slot.date}</div>
-                    <div style={{ fontSize: 12.5, color: "var(--text3)" }}>{slot.time}</div>
-                  </div>
-
-                  {/* Vote bar (subtle) */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                    <div style={{ width: 48, height: 4, background: "var(--border)", borderRadius: 2, overflow: "hidden" }}>
-                      <div style={{ height: "100%", background: isSelected ? "var(--red)" : "#3b82f6", borderRadius: 2, width: `${Math.min(100, (slot.votes / 6) * 100)}%`, transition: "background 0.15s" }} />
-                    </div>
-                    <span style={{ fontSize: 11.5, color: "var(--text3)", minWidth: 20 }}>{slot.votes}</span>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>{slot.display}</div>
                   </div>
                 </div>
               );

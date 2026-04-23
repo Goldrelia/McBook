@@ -1,108 +1,123 @@
 -- Authors:
 -- Hooman Azari - 261055604
 -- Derek Long - 261161918
-PRAGMA foreign_keys = ON;
+-- Aurelia Bouliane - 261118164
 
+-- MySQL Schema for McBook Competition Booking App
 CREATE DATABASE IF NOT EXISTS comp307_booking;
 USE comp307_booking;
 
 -- USERS
--- role: 'owner' (@mcgill.ca) or 'user' (@mail.mcgill.ca)
+-- role: 'owner' (@mcgill.ca) or 'student' (@mail.mcgill.ca)
 CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   role ENUM('owner', 'student') NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-#TODO change the formatting into MySQL instead of sql lite
 -- SLOTS
 -- type:   'request' (Type 1), 'group' (Type 2), 'office_hours' (Type 3)
 -- status: 'private' (owner only) or 'active' (visible to all)
 CREATE TABLE IF NOT EXISTS slots (
-    id               TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-    owner_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    title            TEXT,
-    type             TEXT NOT NULL CHECK (type IN ('request', 'group', 'office_hours')),
-    status           TEXT NOT NULL DEFAULT 'private' CHECK (status IN ('private', 'active')),
-    start_time       TEXT NOT NULL,
-    end_time         TEXT NOT NULL,
-    is_recurring     INTEGER NOT NULL DEFAULT 0,
-    recurrence_weeks INTEGER CHECK (recurrence_weeks > 0),
-    invite_token     TEXT UNIQUE,
-    created_at       TEXT NOT NULL DEFAULT (datetime('now'))
-);
+    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    owner_id INT NOT NULL,
+    title VARCHAR(255),
+    type ENUM('request', 'group', 'office_hours') NOT NULL,
+    status ENUM('private', 'active') NOT NULL DEFAULT 'private',
+    start_time DATETIME NOT NULL,
+    end_time DATETIME NOT NULL,
+    is_recurring TINYINT(1) NOT NULL DEFAULT 0,
+    recurrence_weeks INT CHECK (recurrence_weeks IS NULL OR recurrence_weeks > 0),
+    invite_token VARCHAR(64) UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_owner_id (owner_id),
+    INDEX idx_status (status),
+    INDEX idx_invite_token (invite_token),
+    INDEX idx_type (type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- BOOKINGS
 -- Links a user to a slot they reserved.
 -- status: 'confirmed' or 'cancelled'
 CREATE TABLE IF NOT EXISTS bookings (
-    id        TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-    slot_id   TEXT NOT NULL REFERENCES slots(id) ON DELETE CASCADE,
-    user_id   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    status    TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'cancelled')),
-    booked_at TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE (slot_id, user_id)
-);
+    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    slot_id VARCHAR(36) NOT NULL,
+    user_id INT NOT NULL,
+    status ENUM('confirmed', 'cancelled') NOT NULL DEFAULT 'confirmed',
+    booked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_slot_user (slot_id, user_id),
+    FOREIGN KEY (slot_id) REFERENCES slots(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_slot_id (slot_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- MEETING REQUESTS (Type 1)
 -- A user sends a meeting request to an owner.
 -- status: 'pending', 'accepted', 'declined'
 -- When accepted, a slot + booking row should be created.
 CREATE TABLE IF NOT EXISTS meeting_requests (
-    id           TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-    requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    owner_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    message      TEXT,
-    status       TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
-    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
-);
+    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    requester_id INT NOT NULL,
+    owner_id INT NOT NULL,
+    message TEXT,
+    status ENUM('pending', 'accepted', 'declined') NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (requester_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_owner_id (owner_id),
+    INDEX idx_requester_id (requester_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- AVAILABILITY RESPONSES (Type 2 — Group Meeting)
 -- Each row = one user selecting one available time window.
 -- COUNT rows grouped by (slot_id, selected_time) to find
 -- the most popular time for the owner to pick.
 CREATE TABLE IF NOT EXISTS availability_responses (
-    id            TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-    slot_id       TEXT NOT NULL REFERENCES slots(id) ON DELETE CASCADE,
-    user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    selected_time TEXT NOT NULL,
-    UNIQUE (slot_id, user_id, selected_time)
-);
+    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    slot_id VARCHAR(36) NOT NULL,
+    user_id INT NOT NULL,
+    selected_time DATETIME NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_slot_user_time (slot_id, user_id, selected_time),
+    FOREIGN KEY (slot_id) REFERENCES slots(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_slot_time (slot_id, selected_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- CALENDAR EXPORTS (Bonus Feature)
+-- CALENDAR EXPORTS (Required Feature!)
 -- Stores OAuth tokens for Google / Outlook calendar sync.
 -- provider: 'google' or 'outlook'
 CREATE TABLE IF NOT EXISTS calendar_exports (
-    id            TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-    user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    provider      TEXT NOT NULL CHECK (provider IN ('google', 'outlook')),
-    access_token  TEXT NOT NULL,
+    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id INT NOT NULL,
+    provider ENUM('google', 'outlook') NOT NULL,
+    access_token TEXT NOT NULL,
     refresh_token TEXT,
-    expires_at    TEXT,
-    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE (user_id, provider)
-);
+    expires_at DATETIME,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_user_provider (user_id, provider),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- NOTIFICATIONS
 -- In-app notifications for slot deletions, cancellations, etc.
 -- type: 'slot_deleted', 'booking_cancelled', 'request_accepted', etc.
 CREATE TABLE IF NOT EXISTS notifications (
-    id         TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-    user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    type       TEXT NOT NULL,
-    message    TEXT NOT NULL,
-    is_read    INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
--- INDEXES
-CREATE INDEX IF NOT EXISTS idx_slots_owner_id     ON slots(owner_id);
-CREATE INDEX IF NOT EXISTS idx_slots_status        ON slots(status);
-CREATE INDEX IF NOT EXISTS idx_bookings_user_id    ON bookings(user_id);
-CREATE INDEX IF NOT EXISTS idx_bookings_slot_id    ON bookings(slot_id);
-CREATE INDEX IF NOT EXISTS idx_requests_owner_id   ON meeting_requests(owner_id);
-CREATE INDEX IF NOT EXISTS idx_avail_slot_time     ON availability_responses(slot_id, selected_time);
-CREATE INDEX IF NOT EXISTS idx_notif_user_unread   ON notifications(user_id, is_read);
-CREATE INDEX IF NOT EXISTS idx_slots_invite_token  ON slots(invite_token);
+    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id INT NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    message TEXT NOT NULL,
+    is_read TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_unread (user_id, is_read),
+    INDEX idx_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

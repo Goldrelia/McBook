@@ -8,65 +8,100 @@ import { Search, Check, Mail, X } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Card from "../components/Card";
 import SearchInput from "../components/SearchInput";
-import OwnerCard from "../features/browse/OwnerCard";
-import ReserveModal from "../features/browse/ReserveModal";
-import RequestMeetingModal from "../features/browse/RequestMeetingModal";
-import { MOCK_OWNERS } from "../features/browse/mockData";
+import { browseSlots, createBooking, createMeetingRequest } from "../services/api";
 
 const ICON_SIZE = 13;
 
-// -- BrowseSlotsPage
 export default function BrowseSlotsPage() {
   const navigate = useNavigate();
-  const [theme, setTheme]           = useState(() => localStorage.getItem("mcbook-theme") || "light");
-  const [query, setQuery]           = useState("");
-  const [owners, setOwners]         = useState(MOCK_OWNERS);
-  const [booking, setBooking]       = useState(null);
-  const [booked, setBooked]         = useState(null);
-  const [showRequest, setShowRequest]   = useState(false);
-  const [requested, setRequested]       = useState(null);
+  const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
+  const [query, setQuery] = useState("");
+  const [slots, setSlots] = useState([]);  
+  const [booking, setBooking] = useState(null);
+  const [booked, setBooked] = useState(null);
+  const [showRequest, setShowRequest] = useState(false);
+  const [requested, setRequested] = useState(null);
   const [requestOwner, setRequestOwner] = useState(null);
+  const [loading, setLoading] = useState(true);  
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("mcbook-theme", theme);
   }, [theme]);
 
+  useEffect(() => {
+    loadSlots();
+  }, []);
+
+  async function loadSlots() {
+    try {
+      const data = await browseSlots();
+      setSlots(data);
+    } catch (err) {
+      console.error('Failed to load slots:', err);
+      alert('Failed to load available slots. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const filtered = query.trim()
-    ? owners.filter(o =>
-        o.name.toLowerCase().includes(query.toLowerCase()) ||
-        o.department.toLowerCase().includes(query.toLowerCase()) ||
-        o.role.toLowerCase().includes(query.toLowerCase())
+    ? slots.filter(s =>
+        s.title?.toLowerCase().includes(query.toLowerCase()) ||
+        s.owner_email?.toLowerCase().includes(query.toLowerCase()) ||
+        s.type?.toLowerCase().includes(query.toLowerCase())
       )
-    : owners;
+    : slots;
 
-  function handleReserve(owner, slot) {
-    setBooking({ owner, slot });
+  async function confirmReservation(slot) {
+    try {
+      await createBooking(slot.id);
+      setBooked({ slot, owner_email: slot.owner_email });
+      setBooking(null);
+      
+      // Reload slots to update availability
+      await loadSlots();
+    } catch (err) {
+      console.error('Error booking slot:', err);
+      alert('Failed to book slot. ' + (err.message || 'Please try again.'));
+      setBooking(null);
+    }
   }
 
-  function confirmReservation() {
-    if (!booking) return;
-    setOwners(prev => prev.map(o =>
-      o.id === booking.owner.id
-        ? { ...o, slots: o.slots.map(s => s.id === booking.slot.id ? { ...s, booked: true } : s) }
-        : o
-    ));
-    const subject = encodeURIComponent(`Office Hours Booking: ${booking.slot.day} ${booking.slot.time}`);
-    const body    = encodeURIComponent(`Hi ${booking.owner.name.split(" ")[0]},\n\nI have reserved your office hours slot on ${booking.slot.day} at ${booking.slot.time} (${booking.slot.location}).\n\nBest regards`);
-    window.open(`mailto:${booking.owner.email}?subject=${subject}&body=${body}`);
-    setBooked(booking);
-    setBooking(null);
-    // TODO: POST /api/bookings
+  async function submitRequest(ownerId, message) {
+    try {
+      await createMeetingRequest(ownerId, message);
+      setRequested({ owner_email: requestOwner });
+      setShowRequest(false);
+      setRequestOwner(null);
+    } catch (err) {
+      console.error('Error submitting meeting request:', err);
+      alert('Failed to send meeting request. ' + (err.message || ''));
+    }
   }
 
-  function submitRequest(form) {
-    const owner   = owners.find(o => o.id === parseInt(form.ownerId));
-    const subject = encodeURIComponent(`Meeting Request: ${form.title}`);
-    const body    = encodeURIComponent(`Hi ${owner.name.split(" ")[0]},\n\nI'd like to request a meeting.\n\nTitle: ${form.title}\nDate: ${form.date}\nTime: ${form.time_start} – ${form.time_end}\n\nMessage:\n${form.message}\n\nBest regards`);
-    window.open(`mailto:${owner.email}?subject=${subject}&body=${body}`);
-    setRequested(owner);
-    setShowRequest(false);
-    // TODO: POST /api/meeting-requests
+  // Group slots by owner for display
+  const slotsByOwner = filtered.reduce((acc, slot) => {
+    const email = slot.owner_email;
+    if (!acc[email]) {
+      acc[email] = {
+        email: email,
+        name: email.split('@')[0].replace('.', ' '),
+        slots: []
+      };
+    }
+    acc[email].slots.push(slot);
+    return acc;
+  }, {});
+
+  const owners = Object.values(slotsByOwner);
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ fontSize: 14, color: "var(--text3)" }}>Loading available slots...</div>
+      </div>
+    );
   }
 
   return (
@@ -92,7 +127,7 @@ export default function BrowseSlotsPage() {
             Book a Slot
           </h1>
           <p style={{ fontSize: 13.5, color: "var(--text3)" }}>
-            Browse available office hours or request a custom meeting.
+            Browse available office hours and group meetings.
           </p>
         </div>
 
@@ -101,7 +136,7 @@ export default function BrowseSlotsPage() {
           <div className="mc-fade" style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 9, marginBottom: 20, fontSize: 13.5 }}>
             <span style={{ color: "#10b981", display: "flex" }}><Check size={ICON_SIZE} /></span>
             <span style={{ color: "var(--text)" }}>
-              Booked <strong>{booked.slot.day} at {booked.slot.time}</strong> with <strong>{booked.owner.name}</strong>. A notification email has been sent.
+              Booked <strong>{booked.slot.title}</strong>! Check your dashboard to see your booking.
             </span>
             <button onClick={() => setBooked(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--text3)", display: "flex" }}>
               <X size={ICON_SIZE} />
@@ -113,7 +148,7 @@ export default function BrowseSlotsPage() {
           <div className="mc-fade" style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.25)", borderRadius: 9, marginBottom: 20, fontSize: 13.5 }}>
             <span style={{ color: "#3b82f6", display: "flex" }}><Mail size={ICON_SIZE} /></span>
             <span style={{ color: "var(--text)" }}>
-              Meeting request sent to <strong>{requested.name}</strong>. You'll be notified when they respond.
+              Meeting request sent to <strong>{requested.owner_email}</strong>. You'll be notified when they respond.
             </span>
             <button onClick={() => setRequested(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--text3)", display: "flex" }}>
               <X size={ICON_SIZE} />
@@ -123,51 +158,116 @@ export default function BrowseSlotsPage() {
 
         {/* Section label */}
         <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text3)", marginBottom: 12 }}>
-          Available Office Hours
+          Available Slots
         </div>
 
         {/* Search */}
         <SearchInput
           value={query}
           onChange={setQuery}
-          placeholder="Search by professor name, TA, or department…"
+          placeholder="Search by title, owner, or type…"
           style={{ marginBottom: 20 }}
         />
 
         {/* Results */}
-        {filtered.length === 0 ? (
+        {owners.length === 0 ? (
           <Card style={{ textAlign: "center", padding: "40px 24px", color: "var(--text3)", fontSize: 13.5 }}>
-            No results for "{query}". Try a different name or department.
+            {query.trim() ? `No results for "${query}". Try a different search.` : "No available slots at the moment."}
           </Card>
         ) : (
-          filtered.map((owner, i) => (
-            <OwnerCard
-              key={owner.id}
-              owner={owner}
-              delay={i * 0.05}
-              onReserve={slot => handleReserve(owner, slot)}
-              onRequest={() => { setShowRequest(true); setRequestOwner(owner); }}
-            />
+          owners.map((owner, i) => (
+            <Card key={owner.email} delay={i * 0.05} style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{owner.name}</div>
+                <div style={{ fontSize: 12.5, color: "var(--text3)" }}>{owner.email}</div>
+              </div>
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {owner.slots.map(slot => (
+                  <div key={slot.id} style={{
+                    padding: "10px 12px",
+                    background: "var(--surface2)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 7,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)" }}>{slot.title}</div>
+                      <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                        {new Date(slot.start_time).toLocaleString('en-US', { 
+                          weekday: 'short', 
+                          month: 'short', 
+                          day: 'numeric', 
+                          hour: 'numeric', 
+                          minute: '2-digit' 
+                        })}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setBooking(slot)}
+                      style={{
+                        padding: "6px 14px",
+                        background: "var(--red)",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 6,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        fontFamily: "inherit"
+                      }}
+                    >
+                      Book
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </Card>
           ))
         )}
       </div>
 
+      {/* Booking confirmation modal */}
       {booking && (
-        <ReserveModal
-          owner={booking.owner}
-          slot={booking.slot}
-          onConfirm={confirmReservation}
-          onClose={() => setBooking(null)}
-        />
-      )}
-
-      {showRequest && (
-        <RequestMeetingModal
-          owners={owners}
-          preselectedOwner={requestOwner}
-          onClose={() => { setShowRequest(false); setRequestOwner(null); }}
-          onSubmit={submitRequest}
-        />
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 24, zIndex: 1000
+        }}>
+          <div style={{
+            background: "var(--surface)", borderRadius: 12, padding: 24,
+            maxWidth: 400, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)"
+          }}>
+            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Confirm Booking</h3>
+            <p style={{ fontSize: 14, color: "var(--text2)", marginBottom: 20 }}>
+              Book <strong>{booking.title}</strong> on {new Date(booking.start_time).toLocaleString()}?
+            </p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => confirmReservation(booking)}
+                style={{
+                  flex: 1, padding: "10px", background: "var(--red)", color: "#fff",
+                  border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "inherit"
+                }}
+              >
+                Confirm
+              </button>
+              <button
+                onClick={() => setBooking(null)}
+                style={{
+                  flex: 1, padding: "10px", background: "var(--surface2)", color: "var(--text2)",
+                  border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "inherit"
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

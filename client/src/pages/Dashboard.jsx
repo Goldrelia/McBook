@@ -10,29 +10,54 @@ import Btn from "../components/Btn";
 import Card from "../components/Card";
 import SearchInput from "../components/SearchInput";
 import AppointmentCard from "../features/dashboard/AppointmentCard";
-import { MOCK_APPOINTMENTS } from "../features/dashboard/appointmentConfig";
 import useWindowWidth from "../hooks/useWindowWidth";
+import { getUserBookings, cancelBooking as apiCancelBooking } from "../services/api";
 
-// -- Dashboard
 export default function Dashboard() {
   const navigate = useNavigate();
   const isMobile = useWindowWidth() < 768;
-  const [theme, setTheme]           = useState(() => localStorage.getItem("mcbook-theme") || "light");
-  const [appointments, setAppointments] = useState(MOCK_APPOINTMENTS);
+  const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
+  const [appointments, setAppointments] = useState([]);  
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [filter, setFilter]         = useState("all");
-  const [search, setSearch]         = useState("");
-  const [filterKey, setFilterKey]   = useState(0); // forces re-mount on filter change for animation
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [filterKey, setFilterKey] = useState(0);
+  const [loading, setLoading] = useState(true);  
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("mcbook-theme", theme);
   }, [theme]);
 
-  function handleDelete(id) {
+  useEffect(() => {
+    loadBookings();
+  }, []);
+
+  async function loadBookings() {
+    try {
+      const data = await getUserBookings();
+      setAppointments(data);
+    } catch (err) {
+      console.error('Failed to load bookings:', err);
+      alert('Failed to load your appointments. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDelete(id) {
+    // Optimistic update
+    const oldAppointments = appointments;
     setAppointments(prev => prev.filter(a => a.id !== id));
     setDeleteConfirm(null);
-    // TODO: DELETE /api/bookings/:id
+
+    try {
+      await apiCancelBooking(id);
+    } catch (err) {
+      console.error('Error cancelling booking:', err);
+      setAppointments(oldAppointments); // Restore on error
+      alert('Failed to cancel booking');
+    }
   }
 
   function handleLogout() {
@@ -50,11 +75,19 @@ export default function Dashboard() {
     .filter(a => {
       if (!search.trim()) return true;
       const q = search.toLowerCase();
-      return a.title.toLowerCase().includes(q) || a.owner.toLowerCase().includes(q);
+      return a.title?.toLowerCase().includes(q) || a.owner_email?.toLowerCase().includes(q);
     });
 
   const confirmed = appointments.filter(a => a.status === "confirmed").length;
   const pending   = appointments.filter(a => a.status === "pending").length;
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ fontSize: 14, color: "var(--text3)" }}>Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -85,12 +118,11 @@ export default function Dashboard() {
 
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 280px", gap: 20, alignItems: "start" }}>
 
-          {/* Left — appointments list */}
           <div>
             <SearchInput
               value={search}
               onChange={setSearch}
-              placeholder="Search by title or owner…"
+              placeholder="Search by title or owner email…"
               style={{ marginBottom: 14 }}
             />
 
@@ -152,7 +184,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Right — sidebar, hidden on mobile */}
+          {/* Sidebar */}
           {!isMobile && (
           <div style={{ paddingTop: 46 }}>
             <Card style={{ marginBottom: 14 }}>

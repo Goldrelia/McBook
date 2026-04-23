@@ -14,15 +14,14 @@ import SearchInput from "../components/SearchInput";
 import SlotCard from "../features/owner/SlotCard";
 import RequestCard from "../features/owner/RequestCard";
 import { CreateSlotModal, FinalizeGroupModal } from "../features/owner/CreateSlotModal";
-import { MOCK_SLOTS, MOCK_REQUESTS } from "../features/owner/mockData";
 import useWindowWidth from "../hooks/useWindowWidth";
+import { getOwnerSlots, deleteSlot as apiDeleteSlot, updateSlot, createSlot, finalizeGroupSlot as apiFinalizeGroup, getOwnerRequests, updateMeetingRequest } from "../services/api";
 
 const TABS = [
   { key: "slots", label: "My Slots" },
   { key: "requests", label: "Meeting Requests" },
 ];
 
-// -- SectionTitle
 function SectionTitle({ children }) {
   return (
     <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)", marginBottom: 12, letterSpacing: "-0.01em" }}>
@@ -31,82 +30,98 @@ function SectionTitle({ children }) {
   );
 }
 
-// -- OwnerDashboard
 export default function OwnerDashboard() {
   const navigate = useNavigate();
   const isMobile = useWindowWidth() < 768;
   const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
   const [tab, setTab] = useState("slots");
-  const [slots, setSlots] = useState(MOCK_SLOTS);
-  const [requests, setRequests] = useState(MOCK_REQUESTS);
+  const [slots, setSlots] = useState([]);  // ⚠️ UPDATED: Empty array instead of mock data
+  const [requests, setRequests] = useState([]);  // ⚠️ UPDATED: Empty array
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [deleteSlotId, setDeleteSlotId] = useState(null);
   const [copiedToken, setCopiedToken] = useState(null);
   const [finalizeSlot, setFinalizeSlot] = useState(null);
+  const [loading, setLoading] = useState(true);  // ⚠️ NEW: Loading state
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("mcbook-theme", theme);
   }, [theme]);
 
-  function toggleStatus(id) {
-    const newStatus = slots.find(s => s.id == id).status === "active" ? "private" : "active";
-    setSlots(prev => prev.map(s =>
-      s.id === id ? { ...s, status: s.status === newStatus } : s
-    ));
-    // TODO: PATCH /api/slots/:id { status }
-    fetch(`/api/slots/${id}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ status: newStatus })
-    })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Failed to update status');
-        }
-      })
-      .catch(error => {
-        console.error('Error updating slot status:', error);
-        // Revert the local state on error
-        setSlots(prev => prev.map(s =>
-          s.id === id ? { ...s, status: newStatus === "active" ? "private" : "active" } : s
-        ));
-        // Notify the user
-        console.log("There was an error during slot update.");
-      });
+  // ⚠️ NEW: Load slots from API on mount
+  useEffect(() => {
+    loadSlots();
+    loadRequests();
+  }, []);
 
+  async function loadSlots() {
+    try {
+      const data = await getOwnerSlots();
+      setSlots(data);
+    } catch (err) {
+      console.error('Failed to load slots:', err);
+      alert('Failed to load slots. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
-  async function deleteSlot(id) {
-    //we are making the function async, cleaner error handling
-    const slot = slots.find(s => s.id === id);
-    //here we are basically notifying users
-    slot.bookings.forEach(b => {
-      window.open(`mailto:${b.email}?subject=Booking Cancelled: ${encodeURIComponent(slot.title)}&body=Hi ${b.user.split(" ")[0]},%0A%0AYour booking for "${slot.title}" has been cancelled.%0A%0AApologies for any inconvenience.`);
-    });
+  async function loadRequests() {
+    try {
+      const data = await getOwnerRequests();
+      setRequests(data);
+    } catch (err) {
+      console.error('Failed to load requests:', err);
+    }
+  }
 
-    const oldSlots = slots; //this is a backup save in case delete fails
-    setSlots(prev => prev.filter(s => s.id !== id));
-    setDeleteSlotId(null);
-    // TODO: DELETE /api/slots/:id
+  // ⚠️ UPDATED: Now calls real API
+  async function toggleStatus(id) {
+    const slot = slots.find(s => s.id === id);
+    const newStatus = slot.status === "active" ? "private" : "active";
+    
+    // Optimistic update
+    setSlots(prev => prev.map(s =>
+      s.id === id ? { ...s, status: newStatus } : s
+    ));
 
     try {
-      const res = await fetch(`http://localhost:3000/api/slots/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to delete slot");
-      }
+      await updateSlot(id, { status: newStatus });
     } catch (err) {
-      console.error("Error deleting slot:", err);
-      setSlots(oldSlots); // restore on failure
+      console.error('Error updating slot status:', err);
+      // Revert on error
+      setSlots(prev => prev.map(s =>
+        s.id === id ? { ...s, status: slot.status } : s
+      ));
+      alert('Failed to update slot status');
+    }
+  }
+
+  // ⚠️ UPDATED: Now calls real API
+  async function deleteSlot(id) {
+    const slot = slots.find(s => s.id === id);
+    
+    // Notify users via email (client-side mailto)
+    if (slot.bookings && slot.bookings.length > 0) {
+      slot.bookings.forEach(b => {
+        const userName = b.email ? b.email.split('@')[0] : 'Student';
+        window.open(`mailto:${b.email}?subject=Booking Cancelled: ${encodeURIComponent(slot.title)}&body=Hi ${userName},%0A%0AYour booking for "${slot.title}" has been cancelled.%0A%0AApologies for any inconvenience.`);
+      });
     }
 
+    // Optimistic update
+    const oldSlots = slots;
+    setSlots(prev => prev.filter(s => s.id !== id));
+    setDeleteSlotId(null);
 
+    try {
+      await apiDeleteSlot(id);
+    } catch (err) {
+      console.error('Error deleting slot:', err);
+      setSlots(oldSlots); // Restore on error
+      alert('Failed to delete slot');
+    }
   }
 
   function copyInviteLink(token) {
@@ -116,47 +131,153 @@ export default function OwnerDashboard() {
     setTimeout(() => setCopiedToken(null), 2000);
   }
 
-  function handleRequest(id, action) {
+  async function handleRequest(id, action) {
+    // Optimistic update
     setRequests(prev => prev.map(r => r.id === id ? { ...r, status: action } : r));
+    
     const req = requests.find(r => r.id === id);
-    if (action === "accepted") {
-      window.open(`mailto:${req.email}?subject=Meeting Request Accepted&body=Hi ${req.user.split(" ")[0]},%0A%0AYour meeting request has been accepted. I will follow up with a confirmed time shortly.%0A%0ABest regards`);
+    if (action === "accepted" && req) {
+      const userName = req.requester_email ? req.requester_email.split('@')[0] : 'Student';
+      window.open(`mailto:${req.requester_email}?subject=Meeting Request Accepted&body=Hi ${userName},%0A%0AYour meeting request has been accepted. I will follow up with a confirmed time shortly.%0A%0ABest regards`);
     }
-    // TODO: PATCH /api/meeting-requests/:id { status }
-  }
 
+    try {
+      await updateMeetingRequest(id, action);
+    } catch (err) {
+      console.error('Error updating request:', err);
+      // Revert on error
+      setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'pending' } : r));
+      alert('Failed to update meeting request');
+    }
+  }
 
   async function addSlot(slot) {
     try {
-      const res = await fetch("http://localhost:3000/api/slots", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(slot),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to create slot");
-      }
-
-      const newSlot = await res.json();
-
-      // Use backend response instead of fake data
+      // Transform modal data to API format
+      const apiSlot = transformSlotForAPI(slot);
+      const newSlot = await createSlot(apiSlot);
       setSlots(prev => [...prev, newSlot]);
       setShowCreate(false);
-
     } catch (err) {
-      console.error("Error creating slot:", err);
+      console.error('Error creating slot:', err);
+      alert('Failed to create slot. ' + (err.message || ''));
     }
   }
-  function finalizeGroupSlot(slotId, selectedGroupSlot, isRecurring, recurrenceWeeks) {
-    setSlots(prev => prev.map(s =>
-      s.id === slotId ? { ...s, finalized: true, date: selectedGroupSlot.date, time: selectedGroupSlot.time, is_recurring: isRecurring, recurrence_weeks: recurrenceWeeks } : s
-    ));
-    setFinalizeSlot(null);
-    // TODO: POST /api/slots/finalize
 
+  // Helper function to transform modal data to API format
+  function transformSlotForAPI(slot) {
+    // The modal sends different formats for different types
+    // We need to convert to: { title, type, start_time, end_time, status, is_recurring, recurrence_weeks }
+    
+    if (slot.date && slot.time_start && slot.time_end) {
+      // Type 1 or Type 3 format: { date, time_start, time_end }
+      const dateStr = slot.date; // e.g., "2024-12-20"
+      const startTime = convertTo24Hour(slot.time_start); // e.g., "2:00pm" -> "14:00:00"
+      const endTime = convertTo24Hour(slot.time_end); // e.g., "3:00pm" -> "15:00:00"
+      
+      return {
+        title: slot.title,
+        type: slot.type,
+        status: slot.status || 'private',
+        start_time: `${dateStr} ${startTime}`,
+        end_time: `${dateStr} ${endTime}`,
+        is_recurring: slot.is_recurring || false,
+        recurrence_weeks: slot.recurrence_weeks || null,
+        invite_token: slot.invite_token || null
+      };
+    } else if (slot.slots && slot.slots.length > 0) {
+      // Type 2 format: { slots: [{day, time}] } - use first slot's time
+      const firstSlot = slot.slots[0];
+      // Parse "Monday, December 20" and "2:00pm – 3:00pm" format
+      return {
+        title: slot.title,
+        type: 'group',
+        status: 'active',
+        start_time: parseGroupSlotTime(firstSlot.day, firstSlot.time.split(' – ')[0]),
+        end_time: parseGroupSlotTime(firstSlot.day, firstSlot.time.split(' – ')[1]),
+        is_recurring: false,
+        recurrence_weeks: null,
+        invite_token: slot.invite_token
+      };
+    } else if (slot.group_slots && slot.group_slots.length > 0) {
+      // Type 3 format with multiple time slots
+      const firstSlot = slot.group_slots[0];
+      return {
+        title: slot.title,
+        type: slot.type || 'office_hours',
+        status: 'active',
+        start_time: parseGroupSlotTime(firstSlot.date, firstSlot.time.split(' – ')[0]),
+        end_time: parseGroupSlotTime(firstSlot.date, firstSlot.time.split(' – ')[1]),
+        is_recurring: slot.is_recurring || false,
+        recurrence_weeks: slot.recurrence_weeks || null,
+        invite_token: null
+      };
+    }
+    
+    // Fallback - return as is and hope for the best
+    return slot;
+  }
+
+  // Convert "2:00pm" to "14:00:00"
+  function convertTo24Hour(time12h) {
+    const [time, modifier] = time12h.split(/(am|pm)/i);
+    let [hours, minutes] = time.split(':');
+    
+    if (hours === '12') {
+      hours = '00';
+    }
+    
+    if (modifier.toLowerCase() === 'pm') {
+      hours = parseInt(hours, 10) + 12;
+    }
+    
+    return `${String(hours).padStart(2, '0')}:${minutes || '00'}:00`;
+  }
+
+  // Parse "Monday, December 20" + "2:00pm" into "2024-12-20 14:00:00"
+  function parseGroupSlotTime(dayStr, timeStr) {
+    // This is a simplified version - for production you'd want better date parsing
+    const now = new Date();
+    const year = now.getFullYear();
+    
+    // Extract month and day from "Monday, December 20"
+    const parts = dayStr.split(', ');
+    const [monthName, day] = parts[1].split(' ');
+    
+    const monthMap = {
+      'January': '01', 'February': '02', 'March': '03', 'April': '04',
+      'May': '05', 'June': '06', 'July': '07', 'August': '08',
+      'September': '09', 'October': '10', 'November': '11', 'December': '12'
+    };
+    
+    const month = monthMap[monthName];
+    const dateStr = `${year}-${month}-${day.padStart(2, '0')}`;
+    const time24 = convertTo24Hour(timeStr);
+    
+    return `${dateStr} ${time24}`;
+  }
+
+  // ⚠️ UPDATED: Now calls real API
+  async function finalizeGroupSlotHandler(slotId, selectedGroupSlot, isRecurring, recurrenceWeeks) {
+    try {
+      await apiFinalizeGroup(slotId, selectedGroupSlot.time, isRecurring, recurrenceWeeks);
+      
+      // Optimistic update
+      setSlots(prev => prev.map(s =>
+        s.id === slotId ? { 
+          ...s, 
+          finalized: true, 
+          start_time: selectedGroupSlot.time,
+          is_recurring: isRecurring, 
+          recurrence_weeks: recurrenceWeeks 
+        } : s
+      ));
+      
+      setFinalizeSlot(null);
+    } catch (err) {
+      console.error('Error finalizing group slot:', err);
+      alert('Failed to finalize group meeting');
+    }
   }
 
   const pendingCount = requests.filter(r => r.status === "pending").length;
@@ -164,14 +285,23 @@ export default function OwnerDashboard() {
   const filteredSlots = slots.filter(s => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    return s.title.toLowerCase().includes(q) || s.bookings.some(b => b.user.toLowerCase().includes(q));
+    return s.title?.toLowerCase().includes(q) || 
+           (s.bookings && s.bookings.some(b => b.email?.toLowerCase().includes(q)));
   });
 
   const filteredRequests = requests.filter(r => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    return r.user.toLowerCase().includes(q) || r.email.toLowerCase().includes(q);
+    return r.requester_email?.toLowerCase().includes(q) || r.message?.toLowerCase().includes(q);
   });
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ fontSize: 14, color: "var(--text3)" }}>Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -196,7 +326,7 @@ export default function OwnerDashboard() {
             Owner Dashboard
           </h1>
           <p style={{ fontSize: 13.5, color: "var(--text3)" }}>
-            {slots.length} slots &nbsp;·&nbsp; {slots.reduce((a, s) => a + s.bookings.length, 0)} total bookings &nbsp;·&nbsp; {pendingCount} pending requests
+            {slots.length} slots &nbsp;·&nbsp; {slots.reduce((a, s) => a + (s.bookings?.length || 0), 0)} total bookings &nbsp;·&nbsp; {pendingCount} pending requests
           </p>
         </div>
 
@@ -223,7 +353,7 @@ export default function OwnerDashboard() {
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder={tab === "slots" ? "Search by slot title or student name…" : "Search by student name or email…"}
+          placeholder={tab === "slots" ? "Search by slot title or student email…" : "Search by student email or message…"}
           style={{ marginBottom: 20, maxWidth: isMobile ? "100%" : 400 }}
         />
 
@@ -262,7 +392,7 @@ export default function OwnerDashboard() {
                     { label: "Total slots", val: slots.length },
                     { label: "Active", val: slots.filter(s => s.status === "active").length },
                     { label: "Private", val: slots.filter(s => s.status === "private").length },
-                    { label: "Total bookings", val: slots.reduce((a, s) => a + s.bookings.length, 0) },
+                    { label: "Total bookings", val: slots.reduce((a, s) => a + (s.bookings?.length || 0), 0) },
                   ].map(row => (
                     <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
                       <span style={{ color: "var(--text2)" }}>{row.label}</span>
@@ -333,7 +463,7 @@ export default function OwnerDashboard() {
         <FinalizeGroupModal
           slot={finalizeSlot}
           onClose={() => setFinalizeSlot(null)}
-          onFinalize={(selected, isRecurring, weeks) => finalizeGroupSlot(finalizeSlot.id, selected, isRecurring, weeks)}
+          onFinalize={(selected, isRecurring, weeks) => finalizeGroupSlotHandler(finalizeSlot.id, selected, isRecurring, weeks)}
         />
       )}
     </div>

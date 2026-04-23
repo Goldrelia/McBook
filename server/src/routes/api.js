@@ -1,0 +1,42 @@
+// Authors: Derek Long - 261161918
+
+const express = require('express');
+const router = express.Router();
+const { authenticateToken, requireOwner } = require('../middleware/auth');
+const slotsController = require('../controllers/slotsController');
+const bookingsController = require('../controllers/bookingsController');
+const meetingRequestsController = require('../controllers/meetingRequestsController');
+const availabilityController = require('../controllers/availabilityController');
+const notificationsController = require('../controllers/notificationsController');
+
+// SLOTS
+router.post('/slots', authenticateToken, requireOwner, slotsController.createSlot);
+router.get('/slots', authenticateToken, requireOwner, slotsController.getOwnerSlots);
+router.get('/slots/:id', authenticateToken, slotsController.getSlotById);
+router.patch('/slots/:id', authenticateToken, requireOwner, slotsController.updateSlot);
+router.delete('/slots/:id', authenticateToken, requireOwner, slotsController.deleteSlot);
+router.post('/slots/:id/finalize', authenticateToken, requireOwner, slotsController.finalizeGroupSlot);
+router.get('/browse/slots', authenticateToken, slotsController.browseSlots);
+router.get('/invite/:token', slotsController.getSlotByInvite);
+
+// BOOKINGS
+router.get('/bookings', authenticateToken, bookingsController.getUserBookings);
+router.post('/bookings', authenticateToken, bookingsController.createBooking);
+router.delete('/bookings/:id', authenticateToken, bookingsController.cancelBooking);
+
+// MEETING REQUESTS
+router.post('/meeting-requests', authenticateToken, meetingRequestsController.createMeetingRequest);
+router.get('/meeting-requests', authenticateToken, requireOwner, meetingRequestsController.getOwnerRequests);
+router.patch('/meeting-requests/:id', authenticateToken, requireOwner, meetingRequestsController.updateMeetingRequest);
+
+// AVAILABILITY
+router.post('/availability', authenticateToken, availabilityController.submitAvailability);
+router.get('/availability/:slotId', authenticateToken, availabilityController.getAvailability);
+router.get('/availability/:slotId/my-votes', authenticateToken, availabilityController.getMyAvailability);
+
+// NOTIFICATIONS
+router.get('/notifications', authenticateToken, notificationsController.getNotifications);
+router.patch('/notifications/:id', authenticateToken, notificationsController.markAsRead);
+router.post('/notifications/mark-all-read', authenticateToken, notificationsController.markAllAsRead);
+
+module.exports = router;
