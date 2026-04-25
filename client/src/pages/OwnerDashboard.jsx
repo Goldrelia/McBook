@@ -15,6 +15,7 @@ import SlotCard from "../features/owner/SlotCard";
 import RequestCard from "../features/owner/RequestCard";
 import { CreateSlotModal, FinalizeGroupModal } from "../features/owner/CreateSlotModal";
 import useWindowWidth from "../hooks/useWindowWidth";
+// ⚠️ UPDATED: Import API functions instead of mock data
 import { getOwnerSlots, deleteSlot as apiDeleteSlot, updateSlot, createSlot, finalizeGroupSlot as apiFinalizeGroup, getOwnerRequests, updateMeetingRequest } from "../services/api";
 
 const TABS = [
@@ -58,13 +59,50 @@ export default function OwnerDashboard() {
   async function loadSlots() {
     try {
       const data = await getOwnerSlots();
-      setSlots(data);
+      // Transform API data to add display fields
+      const transformedSlots = data.map(slot => ({
+        ...slot,
+        date: formatDate(slot.start_time),
+        time: formatTime(slot.start_time, slot.end_time),
+        location: slot.location || 'TBD', // Use real location from database
+        bookings: slot.bookings || []
+      }));
+      setSlots(transformedSlots);
     } catch (err) {
       console.error('Failed to load slots:', err);
       alert('Failed to load slots. Please try again.');
     } finally {
       setLoading(false);
     }
+  }
+
+  // Format "2024-12-20 14:00:00" to "Friday, December 20, 2024"
+  function formatDate(datetimeStr) {
+    if (!datetimeStr) return 'TBD';
+    const date = new Date(datetimeStr);
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  }
+
+  // Format start/end times to "2:00pm – 3:00pm"
+  function formatTime(startStr, endStr) {
+    if (!startStr || !endStr) return 'TBD';
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    
+    const formatTimeOnly = (date) => {
+      return date.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      }).toLowerCase();
+    };
+    
+    return `${formatTimeOnly(start)} – ${formatTimeOnly(end)}`;
   }
 
   async function loadRequests() {
@@ -131,6 +169,7 @@ export default function OwnerDashboard() {
     setTimeout(() => setCopiedToken(null), 2000);
   }
 
+  // ⚠️ UPDATED: Now calls real API
   async function handleRequest(id, action) {
     // Optimistic update
     setRequests(prev => prev.map(r => r.id === id ? { ...r, status: action } : r));
@@ -151,12 +190,23 @@ export default function OwnerDashboard() {
     }
   }
 
+  // ⚠️ UPDATED: Now calls real API
   async function addSlot(slot) {
     try {
       // Transform modal data to API format
       const apiSlot = transformSlotForAPI(slot);
       const newSlot = await createSlot(apiSlot);
-      setSlots(prev => [...prev, newSlot]);
+      
+      // Transform API response to add display fields
+      const displaySlot = {
+        ...newSlot,
+        date: formatDate(newSlot.start_time),
+        time: formatTime(newSlot.start_time, newSlot.end_time),
+        location: newSlot.location || 'TBD', // Use real location from response
+        bookings: []
+      };
+      
+      setSlots(prev => [...prev, displaySlot]);
       setShowCreate(false);
     } catch (err) {
       console.error('Error creating slot:', err);
@@ -167,7 +217,7 @@ export default function OwnerDashboard() {
   // Helper function to transform modal data to API format
   function transformSlotForAPI(slot) {
     // The modal sends different formats for different types
-    // We need to convert to: { title, type, start_time, end_time, status, is_recurring, recurrence_weeks }
+    // We need to convert to: { title, type, start_time, end_time, status, is_recurring, recurrence_weeks, location }
     
     if (slot.date && slot.time_start && slot.time_end) {
       // Type 1 or Type 3 format: { date, time_start, time_end }
@@ -183,7 +233,8 @@ export default function OwnerDashboard() {
         end_time: `${dateStr} ${endTime}`,
         is_recurring: slot.is_recurring || false,
         recurrence_weeks: slot.recurrence_weeks || null,
-        invite_token: slot.invite_token || null
+        invite_token: slot.invite_token || null,
+        location: slot.location || 'TBD'
       };
     } else if (slot.slots && slot.slots.length > 0) {
       // Type 2 format: { slots: [{day, time}] } - use first slot's time
@@ -197,7 +248,8 @@ export default function OwnerDashboard() {
         end_time: parseGroupSlotTime(firstSlot.day, firstSlot.time.split(' – ')[1]),
         is_recurring: false,
         recurrence_weeks: null,
-        invite_token: slot.invite_token
+        invite_token: slot.invite_token,
+        location: slot.location || 'TBD'
       };
     } else if (slot.group_slots && slot.group_slots.length > 0) {
       // Type 3 format with multiple time slots
@@ -210,7 +262,8 @@ export default function OwnerDashboard() {
         end_time: parseGroupSlotTime(firstSlot.date, firstSlot.time.split(' – ')[1]),
         is_recurring: slot.is_recurring || false,
         recurrence_weeks: slot.recurrence_weeks || null,
-        invite_token: null
+        invite_token: null,
+        location: slot.location || 'TBD'
       };
     }
     

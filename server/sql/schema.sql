@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS slots (
     is_recurring TINYINT(1) NOT NULL DEFAULT 0,
     recurrence_weeks INT CHECK (recurrence_weeks IS NULL OR recurrence_weeks > 0),
     invite_token VARCHAR(64) UNIQUE,
+    location VARCHAR(255) DEFAULT 'TBD',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_owner_id (owner_id),

@@ -10,7 +10,7 @@ const crypto = require('crypto');
  * POST /api/slots
  */
 async function createSlot(req, res) {
-  const { title, type, status, start_time, end_time, is_recurring, recurrence_weeks } = req.body;
+  const { title, type, status, start_time, end_time, is_recurring, recurrence_weeks, location } = req.body;
   const owner_id = req.user.userId;
 
   // Validation
@@ -27,9 +27,9 @@ async function createSlot(req, res) {
     const invite_token = type === 'group' ? crypto.randomBytes(16).toString('hex') : null;
 
     const [result] = await pool.execute(
-      `INSERT INTO slots (owner_id, title, type, status, start_time, end_time, is_recurring, recurrence_weeks, invite_token)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [owner_id, title, type, status || 'private', start_time, end_time, is_recurring ? 1 : 0, recurrence_weeks, invite_token]
+      `INSERT INTO slots (owner_id, title, type, status, start_time, end_time, is_recurring, recurrence_weeks, invite_token, location)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [owner_id, title, type, status || 'private', start_time, end_time, is_recurring ? 1 : 0, recurrence_weeks, invite_token, location || 'TBD']
     );
 
     // Fetch the created slot
