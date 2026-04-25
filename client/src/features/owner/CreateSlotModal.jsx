@@ -83,9 +83,12 @@ function Type1Form({ onClose, onSave }) {
   function handleSave() {
     if (!isValid) return;
     onSave({
-      title: form.title, type: "request", status: "private",
-      date: new Date(form.date).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
-      time: `${form.time_start} – ${form.time_end}`,
+      title: form.title,
+      type: "request",
+      status: "private",
+      date: form.date,  // Keep raw date: "2026-04-24"
+      time_start: form.time_start,  // Keep raw time: "12:15am"
+      time_end: form.time_end,      // Keep raw time: "12:45am"
       location: form.location || "TBD",
       is_recurring: form.is_recurring,
       recurrence_weeks: form.is_recurring ? parseInt(form.recurrence_weeks) || null : null,
@@ -314,13 +317,35 @@ function Type3Form({ onClose, onSave }) {
 
   function handleSave() {
     if (!isValid) return;
+    
+    // Get the first slot to use as the base time
+    const firstSlot = form.slots[0];
+    
+    // Calculate the next occurrence of the day
+    // E.g., if today is Thursday and slot is Monday, find next Monday
+    const dayMap = { Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6, Sunday: 0 };
+    const targetDay = dayMap[firstSlot.day];
+    const today = new Date();
+    const currentDay = today.getDay();
+    const daysUntilTarget = (targetDay - currentDay + 7) % 7 || 7; // If 0, use 7 (next week)
+    
+    const nextDate = new Date(today);
+    nextDate.setDate(today.getDate() + daysUntilTarget);
+    const dateStr = nextDate.toISOString().split('T')[0]; // "2024-12-22"
+    
+    // Extract start and end times
+    const [timeStart, timeEnd] = firstSlot.time.split(' – ');
+    
     onSave({
-      title: form.title, type: "office_hours", status: "active",
-      date: form.slots.map(s => s.day).join(", "),
-      time: form.slots.map(s => s.time).join(" / "),
+      title: form.title,
+      type: "office_hours",
+      status: "active",
+      date: dateStr,  // Actual date: "2024-12-22"
+      time_start: timeStart,  // "2:15pm"
+      time_end: timeEnd,  // "6:15pm"
       location: form.location || "TBD",
-      is_recurring: true, recurrence_weeks: parseInt(form.weeks),
-      recurring_slots: form.slots,
+      is_recurring: true,
+      recurrence_weeks: parseInt(form.weeks),
     });
   }
 

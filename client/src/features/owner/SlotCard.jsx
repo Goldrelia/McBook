@@ -57,12 +57,12 @@ export default function SlotCard({ slot, delay, onToggle, onDelete, confirmingDe
                 Group Meeting
               </span>
             )}
-            {slot.is_recurring && (
+            {!!slot.is_recurring && slot.recurrence_weeks > 0 && (
               <span style={{ padding: "2px 8px", borderRadius: 5, fontSize: 11, fontWeight: 600, background: "rgba(59,130,246,0.1)", color: "#3b82f6" }}>
                 Recurring · {slot.recurrence_weeks}w
               </span>
             )}
-            {isGroup && slot.finalized && (
+            {isGroup && !!slot.finalized && (
               <span style={{ padding: "2px 8px", borderRadius: 5, fontSize: 11, fontWeight: 600, background: "rgba(16,185,129,0.1)", color: "#10b981" }}>
                 Finalized
               </span>
@@ -157,9 +157,11 @@ export default function SlotCard({ slot, delay, onToggle, onDelete, confirmingDe
             {isActive ? <EyeOff size={ICON_SIZE} /> : <Eye size={ICON_SIZE} />}
             {isActive ? "Make private" : "Activate"}
           </Btn>
-          <Btn variant="outline" onClick={onCopyLink}>
-            <Link size={ICON_SIZE} /> {copied ? "Copied!" : "Copy invite link"}
-          </Btn>
+          {isGroup && (
+            <Btn variant="outline" onClick={onCopyLink}>
+              <Link size={ICON_SIZE} /> {copied ? "Copied!" : "Copy invite link"}
+            </Btn>
+          )}
           {isGroup && !slot.finalized && (
             <Btn variant="outline" onClick={onFinalize} style={{ color: "#3b82f6", borderColor: "rgba(59,130,246,0.3)" }}>
               <Users size={ICON_SIZE} /> Finalize time
