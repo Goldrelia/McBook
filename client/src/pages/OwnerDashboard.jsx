@@ -36,21 +36,20 @@ export default function OwnerDashboard() {
   const isMobile = useWindowWidth() < 768;
   const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
   const [tab, setTab] = useState("slots");
-  const [slots, setSlots] = useState([]);  // ⚠️ UPDATED: Empty array instead of mock data
-  const [requests, setRequests] = useState([]);  // ⚠️ UPDATED: Empty array
+  const [slots, setSlots] = useState([]);  
+  const [requests, setRequests] = useState([]);  
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [deleteSlotId, setDeleteSlotId] = useState(null);
   const [copiedToken, setCopiedToken] = useState(null);
   const [finalizeSlot, setFinalizeSlot] = useState(null);
-  const [loading, setLoading] = useState(true);  // ⚠️ NEW: Loading state
+  const [loading, setLoading] = useState(true); 
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("mcbook-theme", theme);
   }, [theme]);
 
-  // ⚠️ NEW: Load slots from API on mount
   useEffect(() => {
     loadSlots();
     loadRequests();
@@ -108,13 +107,18 @@ export default function OwnerDashboard() {
   async function loadRequests() {
     try {
       const data = await getOwnerRequests();
-      setRequests(data);
+      // Transform to add user field that RequestCard expects
+      const transformedRequests = data.map(req => ({
+        ...req,
+        user: req.requester_email?.split('@')[0].replace('.', ' ') || 'Student',
+        email: req.requester_email
+      }));
+      setRequests(transformedRequests);
     } catch (err) {
       console.error('Failed to load requests:', err);
     }
   }
 
-  // ⚠️ UPDATED: Now calls real API
   async function toggleStatus(id) {
     const slot = slots.find(s => s.id === id);
     const newStatus = slot.status === "active" ? "private" : "active";
@@ -136,7 +140,6 @@ export default function OwnerDashboard() {
     }
   }
 
-  // ⚠️ UPDATED: Now calls real API
   async function deleteSlot(id) {
     const slot = slots.find(s => s.id === id);
     
@@ -169,7 +172,6 @@ export default function OwnerDashboard() {
     setTimeout(() => setCopiedToken(null), 2000);
   }
 
-  // ⚠️ UPDATED: Now calls real API
   async function handleRequest(id, action) {
     // Optimistic update
     setRequests(prev => prev.map(r => r.id === id ? { ...r, status: action } : r));
@@ -190,7 +192,6 @@ export default function OwnerDashboard() {
     }
   }
 
-  // ⚠️ UPDATED: Now calls real API
   async function addSlot(slot) {
     try {
       // Transform modal data to API format
@@ -310,7 +311,6 @@ export default function OwnerDashboard() {
     return `${dateStr} ${time24}`;
   }
 
-  // ⚠️ UPDATED: Now calls real API
   async function finalizeGroupSlotHandler(slotId, selectedGroupSlot, isRecurring, recurrenceWeeks) {
     try {
       await apiFinalizeGroup(slotId, selectedGroupSlot.time, isRecurring, recurrenceWeeks);
