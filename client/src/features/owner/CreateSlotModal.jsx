@@ -154,7 +154,13 @@ function Type2Form({ onClose, onSave }) {
     const label = new Date(newSlot.date).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
     setForm(f => ({
       ...f,
-      slots: [...f.slots, { id: Date.now(), date: label, time: `${newSlot.time_start} – ${newSlot.time_end}`, votes: 0 }],
+      slots: [...f.slots, {
+        id: Date.now(),
+        date: label,  // Formatted: "Monday, Dec 22"
+        rawDate: newSlot.date,  // Raw: "2024-12-22"
+        time: `${newSlot.time_start} – ${newSlot.time_end}`,
+        votes: 0
+      }],
     }));
     setNewSlot({ date: "", time_start: "", time_end: "" });
   }
@@ -164,14 +170,28 @@ function Type2Form({ onClose, onSave }) {
   }
 
   function handleCreate() {
+    // First slot is used for the main slot datetime
+    const firstSlot = form.slots[0];
     onSave({
-      title: form.title, type: "group", status: "active",
-      date: "Various", time: "Multiple slots",
+      title: form.title,
+      type: "group",
+      status: "active",
+      // Main slot uses first option's time
+      date: firstSlot.rawDate,
+      time_start: firstSlot.time.split(' – ')[0],
+      time_end: firstSlot.time.split(' – ')[1],
       location: form.location || "TBD",
-      is_recurring: false, recurrence_weeks: null,
+      is_recurring: false,
+      recurrence_weeks: null,
       invite_token: generatedToken,
+      // Send all voting options to backend
+      group_slot_options: form.slots.map(s => ({  // ← FIXED! No extra brackets
+        date: s.rawDate,
+        start_time: s.time.split(' – ')[0],
+        end_time: s.time.split(' – ')[1]
+      })),
+      // Keep for frontend display
       group_slots: form.slots,
-      finalized: false,
     });
   }
 
@@ -317,10 +337,10 @@ function Type3Form({ onClose, onSave }) {
 
   function handleSave() {
     if (!isValid) return;
-    
+
     // Get the first slot to use as the base time
     const firstSlot = form.slots[0];
-    
+
     // Calculate the next occurrence of the day
     // E.g., if today is Thursday and slot is Monday, find next Monday
     const dayMap = { Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6, Sunday: 0 };
@@ -328,14 +348,14 @@ function Type3Form({ onClose, onSave }) {
     const today = new Date();
     const currentDay = today.getDay();
     const daysUntilTarget = (targetDay - currentDay + 7) % 7 || 7; // If 0, use 7 (next week)
-    
+
     const nextDate = new Date(today);
     nextDate.setDate(today.getDate() + daysUntilTarget);
     const dateStr = nextDate.toISOString().split('T')[0]; // "2024-12-22"
-    
+
     // Extract start and end times
     const [timeStart, timeEnd] = firstSlot.time.split(' – ');
-    
+
     onSave({
       title: form.title,
       type: "office_hours",

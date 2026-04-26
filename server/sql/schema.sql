@@ -41,6 +41,20 @@ CREATE TABLE IF NOT EXISTS slots (
     INDEX idx_type (type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- GROUP SLOT OPTIONS (Type 2 — Group Meeting)
+-- Stores all the time options that students can vote on for a group meeting
+CREATE TABLE IF NOT EXISTS group_slot_options (
+    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    slot_id VARCHAR(36) NOT NULL,
+    option_date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    vote_count INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (slot_id) REFERENCES slots(id) ON DELETE CASCADE,
+    INDEX idx_slot_id (slot_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- BOOKINGS
 -- Links a user to a slot they reserved.
 -- status: 'confirmed' or 'cancelled'
@@ -77,19 +91,20 @@ CREATE TABLE IF NOT EXISTS meeting_requests (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- AVAILABILITY RESPONSES (Type 2 — Group Meeting)
--- Each row = one user selecting one available time window.
--- COUNT rows grouped by (slot_id, selected_time) to find
--- the most popular time for the owner to pick.
+-- Each row = one user voting for one group_slot_option
+-- Links users to specific voting options they selected
 CREATE TABLE IF NOT EXISTS availability_responses (
     id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
     slot_id VARCHAR(36) NOT NULL,
     user_id INT NOT NULL,
-    selected_time DATETIME NOT NULL,
+    group_slot_option_id VARCHAR(36) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY unique_slot_user_time (slot_id, user_id, selected_time),
+    UNIQUE KEY unique_slot_user_option (slot_id, user_id, group_slot_option_id),
     FOREIGN KEY (slot_id) REFERENCES slots(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_slot_time (slot_id, selected_time)
+    FOREIGN KEY (group_slot_option_id) REFERENCES group_slot_options(id) ON DELETE CASCADE,
+    INDEX idx_slot_id (slot_id),
+    INDEX idx_option_id (group_slot_option_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- CALENDAR EXPORTS (Required Feature!)

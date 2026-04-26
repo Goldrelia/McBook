@@ -52,11 +52,9 @@ async function createSlot(req, res) {
   }
 
   if (!["request", "group", "office_hours"].includes(type)) {
-    return res
-      .status(400)
-      .json({
-        error: "Invalid type. Must be: request, group, or office_hours",
-      });
+    return res.status(400).json({
+      error: "Invalid type. Must be: request, group, or office_hours",
+    });
   }
 
   try {
@@ -124,34 +122,62 @@ async function getOwnerSlots(req, res) {
 
   try {
     const [slots] = await pool.execute(
-      "SELECT * FROM slots WHERE owner_id = ? ORDER BY created_at DESC",
+      `SELECT s.*, 
+       GROUP_CONCAT(DISTINCT CONCAT(b.id, ':', u.email, ':', COALESCE(b.status, 'confirmed')) SEPARATOR '||') as booking_data
+       FROM slots s
+       LEFT JOIN bookings b ON s.id = b.slot_id
+       LEFT JOIN users u ON b.user_id = u.id
+       WHERE s.owner_id = ?
+       GROUP BY s.id
+       ORDER BY s.created_at DESC`,
       [owner_id],
     );
 
-    // For each slot, fetch bookings and group options
-    for (let slot of slots) {
-      const [bookings] = await pool.execute(
-        `SELECT b.*, u.email 
-         FROM bookings b 
-         JOIN users u ON b.user_id = u.id 
-         WHERE b.slot_id = ? AND b.status = 'confirmed'`,
-        [slot.id],
-      );
-      slot.bookings = bookings;
+    // Process each slot
+    const processedSlots = await Promise.all(
+      slots.map(async (slot) => {
+        // Parse bookings
+        slot.bookings = slot.booking_data
+          ? slot.booking_data.split("||").map((b) => {
+              const [id, email, status] = b.split(":");
+              return {
+                id,
+                email,
+                status,
+                user: email.split("@")[0].replace(".", " "),
+              };
+            })
+          : [];
+        delete slot.booking_data;
 
-      // If it's a group meeting, fetch voting options
-      if (slot.type === "group") {
-        const [options] = await pool.execute(
-          "SELECT * FROM group_slot_options WHERE slot_id = ? ORDER BY option_date, start_time",
-          [slot.id],
-        );
-        slot.group_slot_options = options;
-      }
-    }
+        // If it's a group meeting, fetch the voting options AND count unique voters
+        if (slot.type === "group") {
+          const [options] = await pool.execute(
+            `SELECT id, option_date, start_time, end_time, vote_count
+     FROM group_slot_options
+     WHERE slot_id = ?
+     ORDER BY option_date, start_time`,
+            [slot.id],
+          );
+          slot.group_slot_options = options;
 
-    res.json(slots);
+          // Count unique voters for this slot
+          const [voterCount] = await pool.execute(
+            `SELECT COUNT(DISTINCT user_id) as voter_count
+     FROM availability_responses
+     WHERE slot_id = ?`,
+            [slot.id],
+          );
+          slot.voter_count = voterCount[0].voter_count;
+        }
+
+        return slot;
+      }),
+    );
+
+    res.json(processedSlots);
   } catch (err) {
-    console.error("Error fetching slots:", err);
+    console.error("Error fetching owner slots:", err);
     res.status(500).json({ error: "Failed to fetch slots" });
   }
 }
@@ -398,28 +424,28 @@ async function getSlotByInvite(req, res) {
 /**
  * Finalize a group meeting slot
  * POST /api/slots/:id/finalize
+ * Body: { selected_option_id, is_recurring, recurrence_weeks }
  */
 async function finalizeGroupSlot(req, res) {
   const { id } = req.params;
-  const owner_id = req.user.userId;
   const { selected_option_id, is_recurring, recurrence_weeks } = req.body;
+  const owner_id = req.user.userId;
 
   try {
+    // Verify slot belongs to owner
     const [slots] = await pool.execute(
-      'SELECT * FROM slots WHERE id = ? AND owner_id = ? AND type = "group"',
+      "SELECT * FROM slots WHERE id = ? AND owner_id = ?",
       [id, owner_id],
     );
 
     if (slots.length === 0) {
-      return res
-        .status(404)
-        .json({ error: "Group slot not found or unauthorized" });
+      return res.status(404).json({ error: "Slot not found" });
     }
 
-    // Get the selected option
+    // Get the selected option details
     const [options] = await pool.execute(
-      "SELECT * FROM group_slot_options WHERE id = ?",
-      [selected_option_id],
+      "SELECT * FROM group_slot_options WHERE id = ? AND slot_id = ?",
+      [selected_option_id, id],
     );
 
     if (options.length === 0) {
@@ -427,45 +453,47 @@ async function finalizeGroupSlot(req, res) {
     }
 
     const selectedOption = options[0];
-    const finalizedTime = `${selectedOption.option_date} ${selectedOption.start_time}`;
-    const finalizedEndTime = `${selectedOption.option_date} ${selectedOption.end_time}`;
 
-    // Update the slot with finalized time
+    // Update the slot with the finalized time
+    const finalStartTime = `${selectedOption.option_date.split("T")[0]} ${selectedOption.start_time}`;
+    const finalEndTime = `${selectedOption.option_date.split("T")[0]} ${selectedOption.end_time}`;
+
     await pool.execute(
-      `UPDATE slots SET start_time = ?, end_time = ?, is_recurring = ?, recurrence_weeks = ? WHERE id = ?`,
+      `UPDATE slots 
+       SET start_time = ?, end_time = ?, is_recurring = ?, recurrence_weeks = ?
+       WHERE id = ?`,
       [
-        finalizedTime,
-        finalizedEndTime,
+        finalStartTime,
+        finalEndTime,
         is_recurring ? 1 : 0,
         recurrence_weeks,
         id,
       ],
     );
 
-    // Get all users who voted
+    // Get all users who voted for this option
     const [voters] = await pool.execute(
-      "SELECT DISTINCT user_id FROM availability_responses WHERE slot_id = ?",
-      [id],
+      `SELECT DISTINCT user_id 
+       FROM availability_responses 
+       WHERE slot_id = ? AND group_slot_option_id = ?`,
+      [id, selected_option_id],
     );
 
     // Create bookings for all voters
-    for (let voter of voters) {
+    for (const voter of voters) {
+      const bookingId = crypto.randomUUID();
       await pool.execute(
-        'INSERT IGNORE INTO bookings (slot_id, user_id, status) VALUES (?, ?, "confirmed")',
-        [id, voter.user_id],
-      );
-
-      await pool.execute(
-        `INSERT INTO notifications (user_id, type, message)
-         VALUES (?, 'group_finalized', ?)`,
-        [
-          voter.user_id,
-          `Group meeting "${slots[0].title}" has been finalized!`,
-        ],
+        `INSERT INTO bookings (id, slot_id, user_id, status)
+         VALUES (?, ?, ?, 'confirmed')`,
+        [bookingId, id, voter.user_id],
       );
     }
 
+    // TODO: Handle recurring meetings (create additional slots)
+    // TODO: Send email notifications
+
     res.json({
+      success: true,
       message: "Group meeting finalized",
       bookings_created: voters.length,
     });

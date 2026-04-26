@@ -19,7 +19,7 @@ const ICON_SIZE = 13;
 //   onCancelDelete   — called when user cancels deletion
 export default function AppointmentCard({ appt, delay, onDelete, confirmingDelete, onConfirmDelete, onCancelDelete }) {
   const [hovered, setHovered] = useState(false);
-  const type   = TYPE_CONFIG[appt.type]    || TYPE_CONFIG.office_hours;
+  const type = TYPE_CONFIG[appt.type] || TYPE_CONFIG.office_hours;
   const status = STATUS_CONFIG[appt.status] || STATUS_CONFIG.confirmed;
 
   return (
@@ -51,15 +51,15 @@ export default function AppointmentCard({ appt, delay, onDelete, confirmingDelet
             {appt.title}
           </div>
         </div>
-        <Avatar name={appt.owner} size={34} />
+        <Avatar email={appt.owner_email} size={34} />
       </div>
 
       {/* Meta row */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", marginBottom: 12 }}>
         {[
           { icon: <Calendar size={ICON_SIZE} />, val: appt.date },
-          { icon: <Clock size={ICON_SIZE} />,    val: appt.time },
-          { icon: <MapPin size={ICON_SIZE} />,   val: appt.location },
+          { icon: <Clock size={ICON_SIZE} />, val: appt.time },
+          { icon: <MapPin size={ICON_SIZE} />, val: appt.location },
         ].map((m, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "var(--text2)" }}>
             <span style={{ color: "var(--text3)" }}>{m.icon}</span>
@@ -70,18 +70,20 @@ export default function AppointmentCard({ appt, delay, onDelete, confirmingDelet
 
       {/* Footer row */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid var(--border)" }}>
-        <div style={{ fontSize: 12.5, color: "var(--text2)", fontWeight: 500 }}>{appt.owner}</div>
+        <div style={{ fontSize: 12.5, color: "var(--text2)", fontWeight: 500 }}>
+          {appt.owner_email?.split('@')[0].replace('.', ' ') || 'Owner'}
+        </div>
 
         {confirmingDelete ? (
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: 12, color: "var(--text3)" }}>Remove this booking?</span>
-            <Btn variant="red"     onClick={onConfirmDelete} style={{ padding: "4px 10px", fontSize: 12 }}>Yes</Btn>
-            <Btn variant="outline" onClick={onCancelDelete}  style={{ padding: "4px 10px", fontSize: 12 }}>No</Btn>
+            <Btn variant="red" onClick={onConfirmDelete} style={{ padding: "4px 10px", fontSize: 12 }}>Yes</Btn>
+            <Btn variant="outline" onClick={onCancelDelete} style={{ padding: "4px 10px", fontSize: 12 }}>No</Btn>
           </div>
         ) : (
           <div style={{ display: "flex", gap: 6 }}>
             <a
-              href={`mailto:${appt.ownerEmail}?subject=Re: ${encodeURIComponent(appt.title)}`}
+              href={`mailto:${appt.owner_email}?subject=Re: ${encodeURIComponent(appt.title)}`}
               style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--text2)", fontSize: 12, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", textDecoration: "none", transition: "all 0.15s" }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--text3)"; e.currentTarget.style.color = "var(--text)"; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text2)"; }}

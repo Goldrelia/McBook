@@ -13,11 +13,16 @@ const notificationsController = require('../controllers/notificationsController'
 router.post('/slots', authenticateToken, requireOwner, slotsController.createSlot);
 router.get('/slots', authenticateToken, requireOwner, slotsController.getOwnerSlots);
 router.get('/slots/:id', authenticateToken, slotsController.getSlotById);
+router.get('/slots/:id/options', authenticateToken, slotsController.getSlotOptions);
 router.patch('/slots/:id', authenticateToken, requireOwner, slotsController.updateSlot);
 router.delete('/slots/:id', authenticateToken, requireOwner, slotsController.deleteSlot);
 router.post('/slots/:id/finalize', authenticateToken, requireOwner, slotsController.finalizeGroupSlot);
 router.get('/browse/slots', authenticateToken, slotsController.browseSlots);
 router.get('/invite/:token', slotsController.getSlotByInvite);
+
+// VOTING (for group meetings)
+router.post('/slots/:token/vote', authenticateToken, availabilityController.submitVote);
+router.get('/slots/:token/my-votes', authenticateToken, availabilityController.getMyVotes);
 
 // BOOKINGS
 router.get('/bookings', authenticateToken, bookingsController.getUserBookings);
@@ -28,11 +33,6 @@ router.delete('/bookings/:id', authenticateToken, bookingsController.cancelBooki
 router.post('/meeting-requests', authenticateToken, meetingRequestsController.createMeetingRequest);
 router.get('/meeting-requests', authenticateToken, requireOwner, meetingRequestsController.getOwnerRequests);
 router.patch('/meeting-requests/:id', authenticateToken, requireOwner, meetingRequestsController.updateMeetingRequest);
-
-// AVAILABILITY
-router.post('/availability', authenticateToken, availabilityController.submitAvailability);
-router.get('/availability/:slotId', authenticateToken, availabilityController.getAvailability);
-router.get('/availability/:slotId/my-votes', authenticateToken, availabilityController.getMyAvailability);
 
 // NOTIFICATIONS
 router.get('/notifications', authenticateToken, notificationsController.getNotifications);

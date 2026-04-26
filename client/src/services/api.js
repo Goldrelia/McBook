@@ -123,3 +123,31 @@ export const markNotificationAsRead = (id) =>
 
 export const markAllNotificationsAsRead = () =>
   apiCall('/notifications/mark-all-read', { method: 'POST' });
+
+// ==================== GROUP SLOT OPTIONS & VOTING ====================
+ 
+// Get voting options for a group slot
+export const getSlotOptions = (slotId) => 
+  apiCall(`/slots/${slotId}/options`);
+ 
+// Submit votes for a group meeting (by invite token)
+export const submitVote = (token, selectedOptionIds) =>
+  apiCall(`/slots/${token}/vote`, {
+    method: 'POST',
+    body: JSON.stringify({ selected_option_ids: selectedOptionIds }),
+  });
+ 
+// Get user's current votes for a group meeting
+export const getMyVotes = (token) =>
+  apiCall(`/slots/${token}/my-votes`);
+ 
+// Finalize a group meeting (owner selects winning option)
+export const finalizeGroupMeeting = (slotId, selectedOptionId, isRecurring, recurrenceWeeks) =>
+  apiCall(`/slots/${slotId}/finalize`, {
+    method: 'POST',
+    body: JSON.stringify({
+      selected_option_id: selectedOptionId,
+      is_recurring: isRecurring,
+      recurrence_weeks: recurrenceWeeks
+    }),
+  });
