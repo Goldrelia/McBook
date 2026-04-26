@@ -23,13 +23,13 @@ const TEAM = [
   {
     name: "Aurelia Bouliane",
     role: "write",
-    email: "member.one@mail.mcgill.ca",
+    email: "aurelia.bouliane@mail.mcgill.ca",
     github: "https://github.com/placeholder",
     contributions: "TODO",
     photo: null,
   },
   {
-    name: "Houman Azari",
+    name: "Hooman Azari",
     role: "write",
     email: "member.two@mail.mcgill.ca",
     github: "https://github.com/placeholder",

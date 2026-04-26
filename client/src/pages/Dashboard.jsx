@@ -17,12 +17,12 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const isMobile = useWindowWidth() < 768;
   const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
-  const [appointments, setAppointments] = useState([]);  
+  const [appointments, setAppointments] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [filterKey, setFilterKey] = useState(0);
-  const [loading, setLoading] = useState(true);  
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -33,10 +33,41 @@ export default function Dashboard() {
     loadBookings();
   }, []);
 
+  function formatTime(startStr, endStr) {
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    const formatTimeOnly = (date) => {
+      let hours = date.getHours();
+      const minutes = date.getMinutes();
+      const ampm = hours >= 12 ? 'pm' : 'am';
+      hours = hours % 12 || 12;
+      const minuteStr = minutes > 0 ? `:${String(minutes).padStart(2, '0')}` : '';
+      return `${hours}${minuteStr}${ampm}`;
+    };
+    return `${formatTimeOnly(start)} – ${formatTimeOnly(end)}`;
+  }
+
   async function loadBookings() {
     try {
       const data = await getUserBookings();
-      setAppointments(data);
+
+      // Transform the data to match what AppointmentCard expects
+      const transformedData = data.map(booking => ({
+        ...booking,
+        // Format date
+        date: new Date(booking.start_time).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }),
+        // Format time
+        time: formatTime(booking.start_time, booking.end_time),
+        // Ensure location exists
+        location: booking.location || 'TBD'
+      }));
+
+      setAppointments(transformedData);
     } catch (err) {
       console.error('Failed to load bookings:', err);
       alert('Failed to load your appointments. Please try again.');
@@ -79,7 +110,7 @@ export default function Dashboard() {
     });
 
   const confirmed = appointments.filter(a => a.status === "confirmed").length;
-  const pending   = appointments.filter(a => a.status === "pending").length;
+  const pending = appointments.filter(a => a.status === "pending").length;
 
   if (loading) {
     return (
@@ -97,11 +128,11 @@ export default function Dashboard() {
         onToggle={() => setTheme(t => t === "light" ? "dark" : "light")}
         navLinks={[
           { label: "Dashboard", onClick: () => navigate("/dashboard"), active: true },
-          { label: "About Us",  onClick: () => navigate("/about") },
+          { label: "About Us", onClick: () => navigate("/about") },
         ]}
         actions={[
           { label: "+ Book a slot", variant: "red", onClick: () => navigate("/slots") },
-          { label: "Log out",       variant: "outline", onClick: handleLogout },
+          { label: "Log out", variant: "outline", onClick: handleLogout },
         ]}
       />
 
@@ -136,10 +167,10 @@ export default function Dashboard() {
               overflowX: "auto",
             }}>
               {[
-                { key: "all",          label: "All" },
+                { key: "all", label: "All" },
                 { key: "office_hours", label: "Office Hours" },
-                { key: "group",        label: "Group Meetings" },
-                { key: "request",      label: "Requests" },
+                { key: "group", label: "Group Meetings" },
+                { key: "request", label: "Requests" },
               ].map(tab => (
                 <button
                   key={tab.key}
@@ -186,37 +217,37 @@ export default function Dashboard() {
 
           {/* Sidebar */}
           {!isMobile && (
-          <div style={{ paddingTop: 46 }}>
-            <Card style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)", marginBottom: 12, letterSpacing: "-0.01em" }}>
-                Quick actions
-              </div>
-              <Btn variant="red" onClick={() => navigate("/slots")} style={{ width: "100%", justifyContent: "center", marginBottom: 8 }}>
-                <Plus size={14} /> Book a new slot
-              </Btn>
-              <Btn variant="outline" onClick={handleLogout} style={{ width: "100%", justifyContent: "center" }}>
-                <LogOut size={14} /> Log out
-              </Btn>
-            </Card>
-
-            <Card>
-              <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)", marginBottom: 12, letterSpacing: "-0.01em" }}>
-                Summary
-              </div>
-              {[
-                { label: "Confirmed",      val: confirmed },
-                { label: "Pending",        val: pending },
-                { label: "Office Hours",   val: appointments.filter(a => a.type === "office_hours").length },
-                { label: "Group Meetings", val: appointments.filter(a => a.type === "group").length },
-                { label: "Requests",       val: appointments.filter(a => a.type === "request").length },
-              ].map(row => (
-                <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
-                  <span style={{ color: "var(--text2)" }}>{row.label}</span>
-                  <span style={{ fontWeight: 700, color: "var(--text)" }}>{row.val}</span>
+            <div style={{ paddingTop: 46 }}>
+              <Card style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)", marginBottom: 12, letterSpacing: "-0.01em" }}>
+                  Quick actions
                 </div>
-              ))}
-            </Card>
-          </div>
+                <Btn variant="red" onClick={() => navigate("/slots")} style={{ width: "100%", justifyContent: "center", marginBottom: 8 }}>
+                  <Plus size={14} /> Book a new slot
+                </Btn>
+                <Btn variant="outline" onClick={handleLogout} style={{ width: "100%", justifyContent: "center" }}>
+                  <LogOut size={14} /> Log out
+                </Btn>
+              </Card>
+
+              <Card>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)", marginBottom: 12, letterSpacing: "-0.01em" }}>
+                  Summary
+                </div>
+                {[
+                  { label: "Confirmed", val: confirmed },
+                  { label: "Pending", val: pending },
+                  { label: "Office Hours", val: appointments.filter(a => a.type === "office_hours").length },
+                  { label: "Group Meetings", val: appointments.filter(a => a.type === "group").length },
+                  { label: "Requests", val: appointments.filter(a => a.type === "request").length },
+                ].map(row => (
+                  <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
+                    <span style={{ color: "var(--text2)" }}>{row.label}</span>
+                    <span style={{ fontWeight: 700, color: "var(--text)" }}>{row.val}</span>
+                  </div>
+                ))}
+              </Card>
+            </div>
           )}
         </div>
       </div>

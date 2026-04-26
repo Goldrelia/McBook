@@ -73,7 +73,7 @@ export default function SlotCard({ slot, delay, onToggle, onDelete, confirmingDe
           </div>
         </div>
         <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text2)", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 6, padding: "3px 10px", flexShrink: 0 }}>
-          {isGroup ? `${slot.group_slots?.reduce((a, s) => a + s.votes, 0) || 0} votes` : `${slot.bookings.length} booked`}
+          {isGroup ? `${slot.totalVoters || 0} ${slot.totalVoters === 1 ? 'voter' : 'voters'}` : `${slot.bookings?.length || 0} booked`}
         </div>
       </div>
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { Check, MapPin, UserRound } from "lucide-react";
-import { getSlotByInvite, submitAvailability, getMyAvailability } from "../services/api";
+import { getSlotByInvite, submitVote, getMyVotes } from "../services/api";
 
 const DEFAULT_ICON_SIZE = 13;
 
@@ -12,9 +12,9 @@ export default function VotePage() {
   const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
   const [selected, setSelected] = useState(new Set());
   const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(true);  
-  const [data, setData] = useState(null);  
-  const [error, setError] = useState(null);  
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -29,18 +29,21 @@ export default function VotePage() {
     try {
       const slotData = await getSlotByInvite(token);
       setData(slotData);
-      
-      // Check if user is logged in and load their previous votes
-      if (localStorage.getItem('mcbook-token')) {
-        try {
-          const myVotes = await getMyAvailability(slotData.id);
-          // Convert to Set of selected times
-          const votedTimes = new Set(myVotes);
-          setSelected(votedTimes);
-        } catch (err) {
-          // User hasn't voted yet or not logged in - that's okay
-          console.log('No previous votes found');
-        }
+
+      const authToken = localStorage.getItem('mcbook-token');
+      if (!authToken) {
+        // Not logged in - they can see the page but can't vote yet
+        // Don't set error, just skip loading previous votes
+        return;
+      }
+
+      // Load previous votes if logged in
+      try {
+        const myVotes = await getMyVotes(token);
+        const votedTimes = new Set(myVotes);
+        setSelected(votedTimes);
+      } catch (err) {
+        console.log('No previous votes found');
       }
     } catch (err) {
       console.error('Failed to load slot:', err);
@@ -65,7 +68,7 @@ export default function VotePage() {
     }
 
     try {
-      await submitAvailability(data.id, Array.from(selected));
+      await submitVote(token, Array.from(selected));
       setSubmitted(true);
     } catch (err) {
       console.error('Error submitting availability:', err);
@@ -127,31 +130,35 @@ export default function VotePage() {
     );
   }
 
-  // Create time slots for voting (simple version - just use start/end times)
-  // Aurelia: MAYBE?? For a real implementation, we would want the owner to specify multiple time options?
-  const timeSlots = [];
-  const startTime = new Date(data.start_time);
-  const endTime = new Date(data.end_time);
-  
-  // Generate hourly slots between start and end time
-  let currentTime = new Date(startTime);
-  while (currentTime < endTime) {
-    const nextTime = new Date(currentTime);
-    nextTime.setHours(currentTime.getHours() + 1);
-    
-    timeSlots.push({
-      time: currentTime.toISOString(),
-      display: currentTime.toLocaleString('en-US', { 
-        weekday: 'long',
-        month: 'long', 
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit'
-      })
+  // Use the actual group slot options from the database
+  const timeSlots = (data.group_slot_options || []).map(option => {
+    const dateOnly = option.option_date.split('T')[0];
+    const startDateTime = new Date(`${dateOnly}T${option.start_time}`);
+    const endDateTime = new Date(`${dateOnly}T${option.end_time}`);
+
+    const dateStr = startDateTime.toLocaleString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric'
     });
-    
-    currentTime = nextTime;
-  }
+
+    const startTime = startDateTime.toLocaleString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    const endTime = endDateTime.toLocaleString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    return {
+      time: option.id,
+      display: `${dateStr} at ${startTime} – ${endTime}`
+    };
+  });
 
   // Main vote page
   return (
@@ -234,21 +241,38 @@ export default function VotePage() {
         )}
 
         {/* Submit */}
-        <button
-          onClick={handleSubmit}
-          disabled={!isValid}
-          style={{
-            width: "100%", padding: "12px", borderRadius: 8,
-            background: isValid ? "var(--red)" : "var(--border)",
-            color: isValid ? "#fff" : "var(--text3)",
-            border: "none", cursor: isValid ? "pointer" : "not-allowed",
-            fontSize: 14.5, fontWeight: 700, fontFamily: "inherit",
-            transition: "all 0.15s",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-          }}
-        >
-          <Check size={DEFAULT_ICON_SIZE}/> Submit my availability
-        </button>
+        {!localStorage.getItem('mcbook-token') ? (
+          <div style={{ textAlign: 'center', padding: '16px', background: 'rgba(232,25,44,0.05)', border: '1px solid rgba(232,25,44,0.2)', borderRadius: 8 }}>
+            <div style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 12 }}>
+              Please log in to submit your availability
+            </div>
+            <button
+              onClick={() => navigate(`/login?redirect=/vote/${token}`)}
+              style={{
+                background: "var(--red)", color: "#fff", border: "none", borderRadius: 8,
+                padding: "10px 20px", fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer"
+              }}
+            >
+              Go to Login
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={handleSubmit}
+            disabled={!isValid}
+            style={{
+              width: "100%", padding: "12px", borderRadius: 8,
+              background: isValid ? "var(--red)" : "var(--border)",
+              color: isValid ? "#fff" : "var(--text3)",
+              border: "none", cursor: isValid ? "pointer" : "not-allowed",
+              fontSize: 14.5, fontWeight: 700, fontFamily: "inherit",
+              transition: "all 0.15s",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            }}
+          >
+            <Check size={DEFAULT_ICON_SIZE} /> Submit my availability
+          </button>
+        )}
       </div>
     </div>
   );

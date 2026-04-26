@@ -3,112 +3,114 @@
 // Hooman Azari - 261055604
 
 const pool = require('../config/db');
+const crypto = require('crypto');
 
 /**
- * Submit availability for a group meeting
- * POST /api/availability
+ * Submit votes for a group meeting
+ * POST /api/slots/:token/vote
  */
-async function submitAvailability(req, res) {
-  const { slot_id, selected_times } = req.body;
+async function submitVote(req, res) {
+  const { token } = req.params;
+  const { selected_option_ids } = req.body;
   const user_id = req.user.userId;
 
-  if (!slot_id || !selected_times || !Array.isArray(selected_times)) {
-    return res.status(400).json({ error: 'slot_id and selected_times (array) are required' });
+  if (!selected_option_ids || !Array.isArray(selected_option_ids) || selected_option_ids.length === 0) {
+    return res.status(400).json({ error: 'Must select at least one time slot' });
   }
 
   try {
-    // Verify slot exists and is a group meeting
+    // Get the slot by invite token
     const [slots] = await pool.execute(
-      'SELECT * FROM slots WHERE id = ? AND type = "group"',
-      [slot_id]
+      'SELECT id FROM slots WHERE invite_token = ? AND type = "group"',
+      [token]
     );
 
     if (slots.length === 0) {
-      return res.status(404).json({ error: 'Group meeting slot not found' });
+      return res.status(404).json({ error: 'Invalid invite token' });
     }
 
-    // Delete existing responses for this user and slot
+    const slotId = slots[0].id;
+
+    // Delete existing votes from this user for this slot
     await pool.execute(
       'DELETE FROM availability_responses WHERE slot_id = ? AND user_id = ?',
-      [slot_id, user_id]
-    );
-
-    // Insert new availability responses
-    const insertPromises = selected_times.map(time => 
-      pool.execute(
-        'INSERT INTO availability_responses (slot_id, user_id, selected_time) VALUES (?, ?, ?)',
-        [slot_id, user_id, time]
-      )
-    );
-
-    await Promise.all(insertPromises);
-
-    res.json({ message: 'Availability submitted successfully', count: selected_times.length });
-  } catch (err) {
-    console.error('Error submitting availability:', err);
-    res.status(500).json({ error: 'Failed to submit availability' });
-  }
-}
-
-/**
- * Get availability responses for a group meeting (for heatmap)
- * GET /api/availability/:slotId
- */
-async function getAvailability(req, res) {
-  const { slotId } = req.params;
-
-  try {
-    // Get all responses grouped by time
-    const [responses] = await pool.execute(
-      `SELECT selected_time, COUNT(*) as vote_count, 
-              GROUP_CONCAT(u.email SEPARATOR ', ') as voters
-       FROM availability_responses ar
-       JOIN users u ON ar.user_id = u.id
-       WHERE ar.slot_id = ?
-       GROUP BY selected_time
-       ORDER BY vote_count DESC`,
-      [slotId]
-    );
-
-    // Get total unique voters
-    const [voterCount] = await pool.execute(
-      'SELECT COUNT(DISTINCT user_id) as total_voters FROM availability_responses WHERE slot_id = ?',
-      [slotId]
-    );
-
-    res.json({
-      responses,
-      total_voters: voterCount[0].total_voters
-    });
-  } catch (err) {
-    console.error('Error fetching availability:', err);
-    res.status(500).json({ error: 'Failed to fetch availability' });
-  }
-}
-
-/**
- * Get user's own availability submissions for a slot
- * GET /api/availability/:slotId/my-votes
- */
-async function getMyAvailability(req, res) {
-  const { slotId } = req.params;
-  const user_id = req.user.userId;
-
-  try {
-    const [responses] = await pool.execute(
-      'SELECT selected_time FROM availability_responses WHERE slot_id = ? AND user_id = ?',
       [slotId, user_id]
     );
 
-    res.json(responses.map(r => r.selected_time));
+    // Reset vote counts for all options (we'll recalculate)
+    await pool.execute(
+      'UPDATE group_slot_options SET vote_count = 0 WHERE slot_id = ?',
+      [slotId]
+    );
+
+    // Insert new votes
+    for (const optionId of selected_option_ids) {
+      const voteId = crypto.randomUUID();
+      await pool.execute(
+        `INSERT INTO availability_responses (id, slot_id, user_id, group_slot_option_id)
+         VALUES (?, ?, ?, ?)`,
+        [voteId, slotId, user_id, optionId]
+      );
+    }
+
+    // Recalculate vote counts for all options
+    const [options] = await pool.execute(
+      'SELECT id FROM group_slot_options WHERE slot_id = ?',
+      [slotId]
+    );
+
+    for (const option of options) {
+      const [counts] = await pool.execute(
+        'SELECT COUNT(*) as count FROM availability_responses WHERE group_slot_option_id = ?',
+        [option.id]
+      );
+      await pool.execute(
+        'UPDATE group_slot_options SET vote_count = ? WHERE id = ?',
+        [counts[0].count, option.id]
+      );
+    }
+
+    res.json({ message: 'Votes submitted successfully', votes_count: selected_option_ids.length });
   } catch (err) {
-    console.error('Error fetching user availability:', err);
-    res.status(500).json({ error: 'Failed to fetch your availability' });
+    console.error('Error submitting vote:', err);
+    res.status(500).json({ error: 'Failed to submit vote' });
+  }
+}
+
+/**
+ * Get user's votes for a specific slot
+ * GET /api/slots/:token/my-votes
+ */
+async function getMyVotes(req, res) {
+  const { token } = req.params;
+  const user_id = req.user.userId;
+
+  try {
+    const [slots] = await pool.execute(
+      'SELECT id FROM slots WHERE invite_token = ?',
+      [token]
+    );
+
+    if (slots.length === 0) {
+      return res.status(404).json({ error: 'Invalid invite token' });
+    }
+
+    const [votes] = await pool.execute(
+      `SELECT ar.*, gso.option_date, gso.start_time, gso.end_time
+       FROM availability_responses ar
+       JOIN group_slot_options gso ON ar.group_slot_option_id = gso.id
+       WHERE ar.slot_id = ? AND ar.user_id = ?`,
+      [slots[0].id, user_id]
+    );
+
+    res.json(votes);
+  } catch (err) {
+    console.error('Error fetching votes:', err);
+    res.status(500).json({ error: 'Failed to fetch votes' });
   }
 }
 
 module.exports = {
-  submitAvailability,
-  getAvailability,
-  getMyAvailability,
+  submitVote,
+  getMyVotes,
 };
