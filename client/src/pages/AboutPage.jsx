@@ -1,5 +1,6 @@
 // Authors:
 // Aurelia Bouliane - 261118164
+// Derek Long - 261161918
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -12,6 +13,7 @@ import {
   SiGithub,
   SiReact, SiVite, SiNodedotjs, SiExpress, SiMysql,
 } from "@icons-pack/react-simple-icons";
+import { useAuth } from '../context/AuthContext';
 
 // TODO: replace with our actual repo URL
 const REPO_URL = "https://github.com/your-org/your-repo";
@@ -24,31 +26,31 @@ const TEAM = [
     name: "Aurelia Bouliane",
     role: "write",
     email: "aurelia.bouliane@mail.mcgill.ca",
-    github: "https://github.com/placeholder",
+    github: "https://github.com/Goldrelia",
     contributions: "TODO",
     photo: null,
   },
   {
     name: "Hooman Azari",
     role: "write",
-    email: "member.two@mail.mcgill.ca",
-    github: "https://github.com/placeholder",
+    email: "hooman.azari@mail.mcgill.ca",
+    github: "https://github.com/HoumanAzari",
     contributions: "TODO",
     photo: null,
   },
   {
-    name: "Team Member Three",
+    name: "Derek Long",
     role: "write",
-    email: "member.three@mail.mcgill.ca",
-    github: "https://github.com/placeholder",
+    email: "derek.long@mail.mcgill.ca",
+    github: "https://github.com/canadianderssop",
     contributions: "TODO",
     photo: null,
   },
   {
-    name: "Team Member Four",
+    name: "Wei-sen Wang",
     role: "write",
-    email: "member.four@mail.mcgill.ca",
-    github: "https://github.com/placeholder",
+    email: "wei-sen.wang@mail.mcgill.ca",
+    github: "https://github.com/Weibrine",
     contributions: "TODO",
     photo: null,
   },
@@ -66,6 +68,7 @@ const TECH_STACK = [
 export default function AboutPage() {
   const navigate = useNavigate();
   const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -74,7 +77,6 @@ export default function AboutPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "'Inter', system-ui, sans-serif" }}>
-
       <Navbar
         theme={theme}
         onToggle={() => setTheme(t => t === "light" ? "dark" : "light")}
@@ -82,7 +84,9 @@ export default function AboutPage() {
           { label: "About Us", onClick: () => navigate("/about"), active: true },
         ]}
         actions={[
-          { label: "Log in →", variant: "ghost", onClick: () => navigate("/login") },
+          user
+            ? { label: "Log out", variant: "outline", onClick: logout }
+            : { label: "Log in →", variant: "ghost", onClick: () => navigate("/login") },
         ]}
       />
 

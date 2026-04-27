@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { Eye, EyeOff } from "lucide-react";
+import { useAuth } from '../context/AuthContext';
 
 const DEFAULT_ICON_SIZE = 16;
 const MCGILL_DOMAINS = ["@mcgill.ca", "@mail.mcgill.ca"];
@@ -12,6 +13,7 @@ function isMcgillEmail(email) {
 
 // -- LoginPage
 export default function LoginPage() {
+  const { login } = useAuth();
   const navigate = useNavigate();
   const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
   const [email, setEmail] = useState("");
@@ -61,8 +63,7 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Login failed');
 
-      localStorage.setItem('mcbook-token', data.token);
-      localStorage.setItem('mcbook-role', data.role);
+      login(data.token, data.role);
 
       // Check if there's a redirect URL in query params
       const params = new URLSearchParams(window.location.search);

@@ -1,6 +1,7 @@
 // Authors:
 // Aurelia Bouliane - 261118164
 // Hooman Azari - 261055604
+// Derek Long - 261161918
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -12,8 +13,10 @@ import SearchInput from "../components/SearchInput";
 import AppointmentCard from "../features/dashboard/AppointmentCard";
 import useWindowWidth from "../hooks/useWindowWidth";
 import { getUserBookings, cancelBooking as apiCancelBooking } from "../services/api";
+import { useAuth } from '../context/AuthContext';
 
 export default function Dashboard() {
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const isMobile = useWindowWidth() < 768;
   const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
@@ -24,6 +27,10 @@ export default function Dashboard() {
   const [filterKey, setFilterKey] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    if (!user) navigate('/login'); // Auth check
+  }, [user, navigate]);
+  
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("mcbook-theme", theme);

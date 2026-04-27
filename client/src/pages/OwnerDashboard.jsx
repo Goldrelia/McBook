@@ -126,7 +126,7 @@ export default function OwnerDashboard() {
     ));
 
     // Send to backend
-    fetch(`http://localhost:3000/api/slots/${id}`, {
+    fetch(`/api/slots/${id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -161,7 +161,7 @@ export default function OwnerDashboard() {
     setDeleteSlotId(null);
 
     try {
-      const res = await fetch(`http://localhost:3000/api/slots/${id}`, {
+      const res = await fetch(`/api/slots/${id}`, {
         method: "DELETE",
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('mcbook-token')}`
@@ -194,7 +194,7 @@ export default function OwnerDashboard() {
     }
 
     try {
-      const res = await fetch(`http://localhost:3000/api/meeting-requests/${id}`, {
+      const res = await fetch(`/api/meeting-requests/${id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
