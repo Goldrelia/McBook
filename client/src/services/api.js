@@ -71,18 +71,23 @@ export const deleteSlot = (id) =>
 export const deleteSlotSeries = (id) =>
   apiCall(`/slots/${id}/series`, { method: 'DELETE' });
 
-export const finalizeGroupSlot = (id, selectedTime, isRecurring, recurrenceWeeks) =>
-  apiCall(`/slots/${id}/finalize`, {
+/** Pass an array of { date, start_time, end_time } or a body object (e.g. weekly expand fields). */
+export const addGroupPollOptions = (slotId, payload) =>
+  apiCall(`/slots/${slotId}/group-options`, {
     method: 'POST',
-    body: JSON.stringify({ 
-      selected_time: selectedTime,
-      is_recurring: isRecurring,
-      recurrence_weeks: recurrenceWeeks 
-    }),
+    body: JSON.stringify(
+      Array.isArray(payload) ? { group_slot_options: payload } : payload
+    ),
   });
+
+export const deleteGroupPollOption = (slotId, optionId) =>
+  apiCall(`/slots/${slotId}/group-options/${optionId}`, { method: 'DELETE' });
 
 // ==================== SLOTS (Student - Browse) ====================
 export const browseSlots = () => apiCall('/browse/slots');
+
+/** Group meeting polls you are invited to (not yet finalized) */
+export const getStudentGroupPolls = () => apiCall('/student/group-polls');
 
 export const getSlotByInvite = (token) => 
   apiCall(`/invite/${token}`);

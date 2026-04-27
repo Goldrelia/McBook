@@ -1,17 +1,32 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
-import { Check, MapPin, UserRound } from "lucide-react";
+import Btn from "../components/Btn";
+import { Check, UserRound } from "lucide-react";
 import { getSlotByInvite, submitVote, getMyVotes } from "../services/api";
 
 const DEFAULT_ICON_SIZE = 13;
+
+function optionDateToYmd(val) {
+  if (val instanceof Date && !Number.isNaN(val.getTime())) {
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, "0");
+    const d = String(val.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  const s = String(val);
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (m) return m[1];
+  return s.split("T")[0];
+}
 
 export default function VotePage() {
   const { token } = useParams();
   const navigate = useNavigate();
   const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
   const [selected, setSelected] = useState(new Set());
-  const [submitted, setSubmitted] = useState(false);
+  const [saveNotice, setSaveNotice] = useState(false);
+  const [hasSavedVote, setHasSavedVote] = useState(false);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -30,20 +45,27 @@ export default function VotePage() {
       const slotData = await getSlotByInvite(token);
       setData(slotData);
 
-      const authToken = localStorage.getItem('mcbook-token');
-      if (!authToken) {
-        // Not logged in - they can see the page but can't vote yet
-        // Don't set error, just skip loading previous votes
+      if (slotData.group_finalized) {
         return;
       }
 
-      // Load previous votes if logged in
+      const authToken = localStorage.getItem('mcbook-token');
+      if (!authToken) {
+        return;
+      }
+
+      if (slotData.can_vote === false) {
+        return;
+      }
+
       try {
         const myVotes = await getMyVotes(token);
         const votedTimes = new Set(myVotes);
         setSelected(votedTimes);
+        setHasSavedVote(myVotes.length > 0);
       } catch (err) {
         console.log('No previous votes found');
+        setHasSavedVote(false);
       }
     } catch (err) {
       console.error('Failed to load slot:', err);
@@ -69,7 +91,13 @@ export default function VotePage() {
 
     try {
       await submitVote(token, Array.from(selected));
-      setSubmitted(true);
+      setHasSavedVote(true);
+      setSaveNotice(true);
+      window.setTimeout(() => setSaveNotice(false), 4500);
+      const slotData = await getSlotByInvite(token);
+      setData(slotData);
+      const myVotes = await getMyVotes(token);
+      setSelected(new Set(myVotes));
     } catch (err) {
       console.error('Error submitting availability:', err);
       alert('Failed to submit availability. ' + (err.message || 'Please try again.'));
@@ -89,15 +117,26 @@ export default function VotePage() {
 
   // Not found / Error
   if (error || !data) {
+    const needLogin = String(error || "").toLowerCase().includes("log in");
     return (
       <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', system-ui, sans-serif" }}>
-        <div style={{ textAlign: "center", padding: 40 }}>
+        <div style={{ textAlign: "center", padding: 40, maxWidth: 400 }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", marginBottom: 8 }}>Invite link not found</div>
-          <div style={{ fontSize: 14, color: "var(--text3)", marginBottom: 24 }}>
-            {error || 'This link may have expired or been removed.'}
+          <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", marginBottom: 8 }}>
+            {needLogin ? "Sign in required" : "Can’t open this poll"}
           </div>
-          <button onClick={() => navigate("/")} style={{ background: "var(--red)", color: "#fff", border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>
+          <div style={{ fontSize: 14, color: "var(--text3)", marginBottom: 24, lineHeight: 1.5 }}>
+            {error || "This link may have expired or been removed."}
+          </div>
+          {needLogin ? (
+            <button
+              onClick={() => navigate(`/login?redirect=/vote/${token}`)}
+              style={{ background: "var(--red)", color: "#fff", border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", marginRight: 8 }}
+            >
+              Log in
+            </button>
+          ) : null}
+          <button onClick={() => navigate("/")} style={{ background: "var(--surface2)", color: "var(--text2)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 20px", fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>
             Go home
           </button>
         </div>
@@ -105,60 +144,84 @@ export default function VotePage() {
     );
   }
 
-  // Submitted confirmation
-  if (submitted) {
+  if (data.group_finalized) {
+    const s = new Date(data.start_time);
+    const e = new Date(data.end_time);
+    const when = `${s.toLocaleString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })} · ${s.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} – ${e.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
     return (
-      <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', system-ui, sans-serif" }}>
-        <div style={{ textAlign: "center", padding: 40, maxWidth: 400 }}>
-          <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(16,185,129,0.1)", border: "2px solid #10b981", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", color: "#10b981" }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 6L9 17l-5-5" />
-            </svg>
+      <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "'Inter', system-ui, sans-serif" }}>
+        <Navbar transparent theme={theme} onToggle={() => setTheme(t => t === "light" ? "dark" : "light")} />
+        <div style={{ maxWidth: 520, margin: "0 auto", padding: "40px 24px 80px" }}>
+          <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--red)", marginBottom: 8 }}>Group meeting — final</div>
+          <h1 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: 12 }}>{data.title}</h1>
+          <p style={{ fontSize: 14, color: "var(--text2)", lineHeight: 1.6, marginBottom: 20 }}>
+            The organizer has finalized the time. Voting is closed.
+          </p>
+          <div style={{ padding: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10 }}>
+            <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 6 }}>When</div>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>{when}</div>
+            {data.location ? (
+              <>
+                <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 6 }}>Where</div>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>{data.location}</div>
+              </>
+            ) : null}
           </div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: "var(--text)", marginBottom: 8, letterSpacing: "-0.02em" }}>Availability submitted!</div>
-          <div style={{ fontSize: 14, color: "var(--text3)", marginBottom: 6, lineHeight: 1.6 }}>
-            Your availability has been recorded for <strong style={{ color: "var(--text2)" }}>{data.title}</strong>.
-          </div>
-          <div style={{ fontSize: 13.5, color: "var(--text3)", marginBottom: 24 }}>
-            You selected <strong style={{ color: "var(--text2)" }}>{selected.size}</strong> slot{selected.size !== 1 ? "s" : ""}. The owner will finalize the time and notify everyone.
-          </div>
-          <button onClick={() => navigate("/")} style={{ background: "var(--red)", color: "#fff", border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>
-            Back to McBook
+          <button
+            onClick={() => navigate("/dashboard")}
+            style={{ marginTop: 20, background: "var(--red)", color: "#fff", border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}
+          >
+            Back to dashboard
           </button>
         </div>
       </div>
     );
   }
 
-  // Use the actual group slot options from the database
-  const timeSlots = (data.group_slot_options || []).map(option => {
-    const dateOnly = option.option_date.split('T')[0];
-    const startDateTime = new Date(`${dateOnly}T${option.start_time}`);
-    const endDateTime = new Date(`${dateOnly}T${option.end_time}`);
+  const WEEK_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const anchor = "2000-01-01";
 
-    const dateStr = startDateTime.toLocaleString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric'
+  const timeSlots = (data.group_slot_options || []).map((option) => {
+    const wd = option.weekday != null && option.weekday !== "" ? Number(option.weekday) : NaN;
+    const noConcreteDate =
+      option.option_date == null ||
+      option.option_date === "" ||
+      String(option.option_date) === "null";
+    const startDateTime = new Date(`${anchor}T${String(option.start_time).slice(0, 8)}`);
+    const endDateTime = new Date(`${anchor}T${String(option.end_time).slice(0, 8)}`);
+    const startTime = startDateTime.toLocaleString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
     });
-
-    const startTime = startDateTime.toLocaleString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
+    const endTime = endDateTime.toLocaleString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
     });
-
-    const endTime = endDateTime.toLocaleString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
+    if (noConcreteDate && !Number.isNaN(wd) && wd >= 0 && wd <= 6) {
+      return {
+        time: option.id,
+        display: `${WEEK_NAMES[wd]} · ${startTime} – ${endTime}`,
+      };
+    }
+    const dateOnly = optionDateToYmd(option.option_date);
+    const startFull = new Date(`${dateOnly}T${option.start_time}`);
+    const endFull = new Date(`${dateOnly}T${option.end_time}`);
+    const dateStr = startFull.toLocaleString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
     });
-
+    const sT = startFull.toLocaleString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+    const eT = endFull.toLocaleString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
     return {
       time: option.id,
-      display: `${dateStr} at ${startTime} – ${endTime}`
+      display: `${dateStr} at ${sT} – ${eT}`,
     };
   });
+
+  const authToken = localStorage.getItem("mcbook-token");
 
   // Main vote page
   return (
@@ -185,7 +248,35 @@ export default function VotePage() {
               <UserRound size={DEFAULT_ICON_SIZE} /> {data.owner_email}
             </span>
           </div>
+          <p style={{ fontSize: 12.5, color: "var(--text3)", marginTop: 12, marginBottom: 0, lineHeight: 1.55 }}>
+            You can change your selections anytime until the organizer finalizes the meeting.
+          </p>
+          {data.group_season_start && data.group_season_end ? (
+            <p style={{ fontSize: 12.5, color: "var(--text2)", marginTop: 10, marginBottom: 0, lineHeight: 1.55 }}>
+              Organizer indicated a possible window:{" "}
+              <strong style={{ color: "var(--text)" }}>
+                {String(data.group_season_start).slice(0, 10)} – {String(data.group_season_end).slice(0, 10)}
+              </strong>
+              . You are choosing a day-of-week and time pattern, not a specific calendar date.
+            </p>
+          ) : null}
         </div>
+
+        {saveNotice && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: "12px 14px",
+              borderRadius: 8,
+              background: "rgba(16,185,129,0.1)",
+              border: "1px solid rgba(16,185,129,0.35)",
+              fontSize: 13,
+              color: "var(--text2)",
+            }}
+          >
+            Saved. Change your selections above if needed, or use Return to dashboard anytime before the organizer finalizes.
+          </div>
+        )}
 
         {/* Slot selection */}
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, padding: 18, boxShadow: "var(--shadow-sm)", marginBottom: 20 }}>
@@ -209,7 +300,6 @@ export default function VotePage() {
                     transition: "all 0.15s",
                   }}
                 >
-                  {/* Checkbox */}
                   <div style={{
                     width: 20, height: 20, borderRadius: 5, flexShrink: 0,
                     border: `2px solid ${isSelected ? "var(--red)" : "var(--border)"}`,
@@ -233,16 +323,18 @@ export default function VotePage() {
           </div>
         </div>
 
-        {/* Selected summary */}
         {selected.size > 0 && (
           <div style={{ padding: "10px 14px", background: "rgba(232,25,44,0.05)", border: "1px solid rgba(232,25,44,0.2)", borderRadius: 8, fontSize: 13, color: "var(--text2)", marginBottom: 16 }}>
             ✅ <strong style={{ color: "var(--text)" }}>{selected.size}</strong> slot{selected.size !== 1 ? "s" : ""} selected
           </div>
         )}
 
-        {/* Submit */}
-        {!localStorage.getItem('mcbook-token') ? (
-          <div style={{ textAlign: 'center', padding: '16px', background: 'rgba(232,25,44,0.05)', border: '1px solid rgba(232,25,44,0.2)', borderRadius: 8 }}>
+        {data.can_vote === false ? (
+          <div style={{ textAlign: "center", padding: 16, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, color: "var(--text2)", marginBottom: 12 }}>
+            You can’t update votes on this poll.
+          </div>
+        ) : !authToken ? (
+          <div style={{ textAlign: 'center', padding: '16px', background: 'rgba(232,25,44,0.05)', border: '1px solid rgba(232,25,44,0.2)', borderRadius: 8, marginBottom: 12 }}>
             <div style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 12 }}>
               Please log in to submit your availability
             </div>
@@ -270,9 +362,21 @@ export default function VotePage() {
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             }}
           >
-            <Check size={DEFAULT_ICON_SIZE} /> Submit my availability
+            <Check size={DEFAULT_ICON_SIZE} /> {hasSavedVote ? "Update my availability" : "Save my availability"}
           </button>
         )}
+
+        {authToken ? (
+          <div style={{ marginTop: 12 }}>
+            <Btn
+              variant="outline"
+              onClick={() => navigate("/dashboard")}
+              style={{ width: "100%", justifyContent: "center", padding: "12px 14px", fontSize: 14 }}
+            >
+              Return to dashboard
+            </Btn>
+          </div>
+        ) : null}
       </div>
     </div>
   );

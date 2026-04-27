@@ -5,6 +5,12 @@
 const pool = require('../config/db');
 const crypto = require('crypto');
 
+function normalizeEmail(e) {
+  return String(e || '')
+    .trim()
+    .toLowerCase();
+}
+
 /**
  * Submit votes for a group meeting
  * POST /api/slots/:token/vote
@@ -21,7 +27,7 @@ async function submitVote(req, res) {
   try {
     // Get the slot by invite token
     const [slots] = await pool.execute(
-      'SELECT id FROM slots WHERE invite_token = ? AND type = "group"',
+      'SELECT id, group_finalized FROM slots WHERE invite_token = ? AND type = "group"',
       [token]
     );
 
@@ -29,7 +35,27 @@ async function submitVote(req, res) {
       return res.status(404).json({ error: 'Invalid invite token' });
     }
 
+    if (Number(slots[0].group_finalized) === 1) {
+      return res.status(400).json({ error: 'Voting is closed; this meeting time has been finalized.' });
+    }
+
     const slotId = slots[0].id;
+
+    const [me] = await pool.execute('SELECT email FROM users WHERE id = ?', [user_id]);
+    const myEmail = me[0] ? normalizeEmail(me[0].email) : '';
+
+    const [invRows] = await pool.execute(
+      'SELECT email FROM group_meeting_invitees WHERE slot_id = ?',
+      [slotId]
+    );
+    if (invRows.length > 0) {
+      const allowed = invRows.some(
+        (r) => normalizeEmail(r.email) === myEmail
+      );
+      if (!allowed) {
+        return res.status(403).json({ error: 'You are not on the invited list for this meeting.' });
+      }
+    }
 
     // Delete existing votes from this user for this slot
     await pool.execute(
@@ -95,11 +121,28 @@ async function getMyVotes(req, res) {
       return res.status(404).json({ error: 'Invalid invite token' });
     }
 
+    const slotId = slots[0].id;
+    const [me] = await pool.execute('SELECT email FROM users WHERE id = ?', [user_id]);
+    const myEmail = me[0] ? normalizeEmail(me[0].email) : '';
+
+    const [invRows] = await pool.execute(
+      'SELECT email FROM group_meeting_invitees WHERE slot_id = ?',
+      [slotId]
+    );
+    if (invRows.length > 0) {
+      const allowed = invRows.some(
+        (r) => normalizeEmail(r.email) === myEmail
+      );
+      if (!allowed) {
+        return res.status(403).json({ error: 'You are not on the invited list for this meeting.' });
+      }
+    }
+
     const [votes] = await pool.execute(
       `SELECT ar.group_slot_option_id
        FROM availability_responses ar
        WHERE ar.slot_id = ? AND ar.user_id = ?`,
-      [slots[0].id, user_id]
+      [slotId, user_id]
     );
 
     res.json(votes.map(v => v.group_slot_option_id));

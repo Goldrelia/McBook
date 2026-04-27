@@ -15,11 +15,13 @@ async function getUserBookings(req, res) {
   try {
     const [bookings] = await pool.execute(
       `SELECT b.*, s.title, s.type, s.start_time, s.end_time, s.status as slot_status,
+              s.location, s.is_recurring, s.recurrence_weeks, s.group_finalized, s.invite_token,
               u.email as owner_email
        FROM bookings b
        JOIN slots s ON b.slot_id = s.id
        JOIN users u ON s.owner_id = u.id
        WHERE b.user_id = ? AND b.status = 'confirmed'
+         AND s.status = 'active'
        ORDER BY s.start_time ASC`,
       [user_id]
     );

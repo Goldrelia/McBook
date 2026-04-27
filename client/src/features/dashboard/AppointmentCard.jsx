@@ -2,6 +2,7 @@
 // Aurelia Bouliane - 261118164
 // Hooman Azari - 261055604
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Calendar, Clock, MapPin, Mail, Trash2 } from "lucide-react";
 import Btn from "../../components/Btn";
 import Avatar from "../../components/Avatar";
@@ -18,9 +19,13 @@ const ICON_SIZE = 13;
 //   onConfirmDelete  — called when user confirms deletion
 //   onCancelDelete   — called when user cancels deletion
 export default function AppointmentCard({ appt, delay, onDelete, confirmingDelete, onConfirmDelete, onCancelDelete }) {
+  const navigate = useNavigate();
   const [hovered, setHovered] = useState(false);
   const type = TYPE_CONFIG[appt.type] || TYPE_CONFIG.office_hours;
-  const status = STATUS_CONFIG[appt.status] || STATUS_CONFIG.confirmed;
+  const status =
+    appt.isGroupPoll && appt.groupPollStatus
+      ? STATUS_CONFIG[appt.groupPollStatus] || STATUS_CONFIG.pending
+      : STATUS_CONFIG[appt.status] || STATUS_CONFIG.confirmed;
 
   return (
     <div
@@ -77,6 +82,34 @@ export default function AppointmentCard({ appt, delay, onDelete, confirmingDelet
         {appt.isRequestOnly ? (
           <div style={{ fontSize: 12.5, color: "var(--text3)", fontWeight: 500 }}>
             Awaiting owner response
+          </div>
+        ) : appt.isGroupPoll ? (
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {appt.groupPollStatus === "need_vote" && appt.invite_token && (
+              <Btn
+                variant="red"
+                onClick={() => navigate(`/vote/${appt.invite_token}`)}
+                style={{ padding: "5px 11px", fontSize: 12 }}
+              >
+                Vote
+              </Btn>
+            )}
+            {appt.groupPollStatus === "awaiting_owner" && (
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
+                {appt.invite_token ? (
+                  <Btn
+                    variant="outline"
+                    onClick={() => navigate(`/vote/${appt.invite_token}`)}
+                    style={{ padding: "5px 11px", fontSize: 12 }}
+                  >
+                    Edit vote
+                  </Btn>
+                ) : null}
+                <span style={{ fontSize: 12.5, color: "var(--text3)", fontWeight: 500 }}>
+                  Owner will confirm the time
+                </span>
+              </div>
+            )}
           </div>
         ) : confirmingDelete ? (
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

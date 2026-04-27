@@ -32,6 +32,9 @@ CREATE TABLE IF NOT EXISTS slots (
     is_recurring TINYINT(1) NOT NULL DEFAULT 0,
     recurrence_weeks INT CHECK (recurrence_weeks IS NULL OR recurrence_weeks > 0),
     invite_token VARCHAR(64) UNIQUE,
+    group_finalized TINYINT(1) NOT NULL DEFAULT 0,
+    group_season_start DATE NULL,
+    group_season_end DATE NULL,
     location VARCHAR(255) DEFAULT 'TBD',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -46,13 +49,25 @@ CREATE TABLE IF NOT EXISTS slots (
 CREATE TABLE IF NOT EXISTS group_slot_options (
     id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
     slot_id VARCHAR(36) NOT NULL,
-    option_date DATE NOT NULL,
+    option_date DATE NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
+    weekday TINYINT NULL COMMENT '0=Sun..6=Sat when option_date is NULL (weekly vote choice)',
     vote_count INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (slot_id) REFERENCES slots(id) ON DELETE CASCADE,
     INDEX idx_slot_id (slot_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- GROUP MEETING INVITEES (Type 2 — who may vote; empty list = public invite link, legacy)
+CREATE TABLE IF NOT EXISTS group_meeting_invitees (
+    id VARCHAR(36) PRIMARY KEY,
+    slot_id VARCHAR(36) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (slot_id) REFERENCES slots(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_slot_invitee (slot_id, email),
+    INDEX idx_invitee_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- BOOKINGS
