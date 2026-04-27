@@ -1,6 +1,8 @@
 // Authors:
 // Aurelia Bouliane - 261118164
 // Hooman Azari - 261118164
+// TODO: DELETE WHEN BACKEND FULLY IMPLEMENTED
+
 export const MOCK_OWNERS = [
   {
     id: 1,

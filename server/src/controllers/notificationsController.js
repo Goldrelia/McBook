@@ -1,5 +1,6 @@
 // Authors:
 // Derek Long - 261161918
+// Aurelia Bouliane - 261118164
 
 const pool = require('../config/db');
 

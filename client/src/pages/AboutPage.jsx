@@ -1,5 +1,6 @@
 // Authors:
 // Aurelia Bouliane - 261118164
+// Derek Long - 261161918
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";

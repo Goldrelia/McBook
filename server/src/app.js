@@ -1,5 +1,6 @@
 // Authors:
 // Derek Long - 2616161918
+// Aurelia Bouliane - 261118164
 
 const express = require('express');
 const bcrypt = require('bcrypt');

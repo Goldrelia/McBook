@@ -1,3 +1,7 @@
+// Authors:
+// Aurelia Bouliane - 261118164
+// Hooman Azari - 261055604
+
 // ── Card ───────────────────────────────────────────────────────────
 // Props:
 //   children — content
