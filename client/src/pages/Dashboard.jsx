@@ -11,7 +11,7 @@ import Card from "../components/Card";
 import SearchInput from "../components/SearchInput";
 import AppointmentCard from "../features/dashboard/AppointmentCard";
 import useWindowWidth from "../hooks/useWindowWidth";
-import { getUserBookings, cancelBooking as apiCancelBooking } from "../services/api";
+import { getUserBookings, cancelBooking as apiCancelBooking, getMyMeetingRequests } from "../services/api";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -49,10 +49,13 @@ export default function Dashboard() {
 
   async function loadBookings() {
     try {
-      const data = await getUserBookings();
+      const [bookingsData, myRequests] = await Promise.all([
+        getUserBookings(),
+        getMyMeetingRequests(),
+      ]);
 
       // Transform the data to match what AppointmentCard expects
-      const transformedData = data.map(booking => ({
+      const transformedBookings = bookingsData.map(booking => ({
         ...booking,
         // Format date
         date: new Date(booking.start_time).toLocaleDateString('en-US', {
@@ -67,7 +70,34 @@ export default function Dashboard() {
         location: booking.location || 'TBD'
       }));
 
-      setAppointments(transformedData);
+      const parseMessageField = (message = "", key) => {
+        const line = String(message)
+          .split("\n")
+          .map((l) => l.trim())
+          .find((l) => l.toLowerCase().startsWith(`${key.toLowerCase()}:`));
+        return line ? line.split(":").slice(1).join(":").trim() : "";
+      };
+
+      const transformedPendingRequests = (myRequests || [])
+        .filter((req) => req.status === "pending")
+        .map((req) => {
+          const preferredDate = parseMessageField(req.message, "Preferred date");
+          const preferredTime = parseMessageField(req.message, "Preferred time");
+          const topic = parseMessageField(req.message, "Topic") || "Meeting request";
+          return {
+            id: `req-${req.id}`,
+            type: "request",
+            status: "pending",
+            title: topic,
+            date: preferredDate || "Pending date",
+            time: preferredTime || "Pending time",
+            location: "TBD",
+            owner_email: req.owner_email,
+            isRequestOnly: true,
+          };
+        });
+
+      setAppointments([...transformedPendingRequests, ...transformedBookings]);
     } catch (err) {
       console.error('Failed to load bookings:', err);
       alert('Failed to load your appointments. Please try again.');
@@ -77,6 +107,19 @@ export default function Dashboard() {
   }
 
   async function handleDelete(id) {
+    const target = appointments.find(a => a.id === id);
+    if (target?.isRequestOnly) {
+      return;
+    }
+
+    if (target?.owner_email) {
+      const subject = encodeURIComponent(`Booking Cancelled: ${target.title}`);
+      const body = encodeURIComponent(
+        `Hi,\n\nI cancelled my booking for "${target.title}" on ${target.date} at ${target.time}.\n\nRegards`
+      );
+      window.open(`mailto:${target.owner_email}?subject=${subject}&body=${body}`);
+    }
+
     // Optimistic update
     const oldAppointments = appointments;
     setAppointments(prev => prev.filter(a => a.id !== id));

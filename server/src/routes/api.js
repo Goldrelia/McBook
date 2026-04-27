@@ -16,6 +16,7 @@ router.get('/slots/:id', authenticateToken, slotsController.getSlotById);
 router.get('/slots/:id/options', authenticateToken, slotsController.getSlotOptions);
 router.patch('/slots/:id', authenticateToken, requireOwner, slotsController.updateSlot);
 router.delete('/slots/:id', authenticateToken, requireOwner, slotsController.deleteSlot);
+router.delete('/slots/:id/series', authenticateToken, requireOwner, slotsController.deleteRecurringSeries);
 router.post('/slots/:id/finalize', authenticateToken, requireOwner, slotsController.finalizeGroupSlot);
 router.get('/browse/slots', authenticateToken, slotsController.browseSlots);
 router.get('/invite/:token', slotsController.getSlotByInvite);
@@ -32,6 +33,7 @@ router.delete('/bookings/:id', authenticateToken, bookingsController.cancelBooki
 // MEETING REQUESTS
 router.post('/meeting-requests', authenticateToken, meetingRequestsController.createMeetingRequest);
 router.get('/meeting-requests', authenticateToken, requireOwner, meetingRequestsController.getOwnerRequests);
+router.get('/meeting-requests/mine', authenticateToken, meetingRequestsController.getUserRequests);
 router.patch('/meeting-requests/:id', authenticateToken, requireOwner, meetingRequestsController.updateMeetingRequest);
 
 // NOTIFICATIONS

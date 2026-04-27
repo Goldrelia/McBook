@@ -96,14 +96,13 @@ async function getMyVotes(req, res) {
     }
 
     const [votes] = await pool.execute(
-      `SELECT ar.*, gso.option_date, gso.start_time, gso.end_time
+      `SELECT ar.group_slot_option_id
        FROM availability_responses ar
-       JOIN group_slot_options gso ON ar.group_slot_option_id = gso.id
        WHERE ar.slot_id = ? AND ar.user_id = ?`,
       [slots[0].id, user_id]
     );
 
-    res.json(votes);
+    res.json(votes.map(v => v.group_slot_option_id));
   } catch (err) {
     console.error('Error fetching votes:', err);
     res.status(500).json({ error: 'Failed to fetch votes' });

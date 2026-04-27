@@ -15,6 +15,50 @@ const STATUS_CONFIG = {
   declined: { label: "Declined", color: "var(--text3)", bg: "rgba(156,163,175,0.1)" },
 };
 
+function parseRequestMessage(message = "") {
+  const parsed = { date: "", time: "", topic: "", details: "" };
+  const lines = String(message)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    if (line.toLowerCase().startsWith("preferred date:")) {
+      parsed.date = line.split(":").slice(1).join(":").trim();
+    } else if (line.toLowerCase().startsWith("preferred time:")) {
+      parsed.time = line.split(":").slice(1).join(":").trim();
+    } else if (line.toLowerCase().startsWith("topic:")) {
+      parsed.topic = line.split(":").slice(1).join(":").trim();
+    } else if (line.toLowerCase().startsWith("details:")) {
+      parsed.details = line.split(":").slice(1).join(":").trim();
+    }
+  }
+
+  if (!parsed.date && !parsed.time && !parsed.topic && !parsed.details) {
+    parsed.details = message;
+  }
+
+  return parsed;
+}
+
+function to12Hour(timeStr = "") {
+  const [hRaw, mRaw = "00"] = String(timeStr).trim().split(":");
+  const hNum = Number(hRaw);
+  const mNum = Number(mRaw);
+  if (Number.isNaN(hNum) || Number.isNaN(mNum)) return timeStr;
+  const ampm = hNum >= 12 ? "pm" : "am";
+  const hour = hNum % 12 || 12;
+  const minutes = String(mNum).padStart(2, "0");
+  return `${hour}:${minutes}${ampm}`;
+}
+
+function formatPreferredTimeRange(timeRange = "") {
+  if (!timeRange) return "";
+  const parts = timeRange.split("-").map((p) => p.trim()).filter(Boolean);
+  if (parts.length !== 2) return timeRange;
+  return `${to12Hour(parts[0])} - ${to12Hour(parts[1])}`;
+}
+
 // -- RequestCard
 // Props:
 //   req       — request object
@@ -24,6 +68,17 @@ const STATUS_CONFIG = {
 export default function RequestCard({ req, delay, onAccept, onDecline }) {
   const [hov, setHov] = useState(false);
   const s = STATUS_CONFIG[req.status];
+  const details = parseRequestMessage(req.message);
+  const formattedPreferredTime = formatPreferredTimeRange(details.time);
+
+  const formattedCreatedAt = req.created_at
+    ? new Date(req.created_at).toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : "";
 
   return (
     <div
@@ -45,7 +100,7 @@ export default function RequestCard({ req, delay, onAccept, onDecline }) {
           <Avatar name={req.user} size={36} />
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.01em" }}>{req.user}</div>
-            <div style={{ fontSize: 12, color: "var(--text3)" }}>{req.email} · {req.created_at}</div>
+            <div style={{ fontSize: 12, color: "var(--text3)" }}>{req.email} · {formattedCreatedAt}</div>
           </div>
         </div>
         <span style={{ padding: "2px 9px", borderRadius: 5, fontSize: 11, fontWeight: 600, background: s.bg, color: s.color, flexShrink: 0 }}>
@@ -53,9 +108,34 @@ export default function RequestCard({ req, delay, onAccept, onDecline }) {
         </span>
       </div>
 
-      {/* Message */}
-      <div style={{ fontSize: 13.5, color: "var(--text2)", lineHeight: 1.6, padding: "10px 12px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 7, marginBottom: 12 }}>
-        "{req.message}"
+      {/* Structured request content */}
+      <div style={{ padding: "10px 12px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 7, marginBottom: 12 }}>
+        {details.topic && (
+          <div style={{ marginBottom: 6 }}>
+            <span style={{ fontSize: 12, color: "var(--text3)", marginRight: 6 }}>Topic</span>
+            <span style={{ fontSize: 13.5, color: "var(--text)", fontWeight: 600 }}>{details.topic}</span>
+          </div>
+        )}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", marginBottom: details.details ? 8 : 0 }}>
+          {details.date && (
+            <div>
+              <span style={{ fontSize: 12, color: "var(--text3)", marginRight: 6 }}>Preferred date</span>
+              <span style={{ fontSize: 13, color: "var(--text2)" }}>{details.date}</span>
+            </div>
+          )}
+          {details.time && (
+            <div>
+              <span style={{ fontSize: 12, color: "var(--text3)", marginRight: 6 }}>Preferred time</span>
+              <span style={{ fontSize: 13, color: "var(--text2)" }}>{formattedPreferredTime}</span>
+            </div>
+          )}
+        </div>
+        {details.details && (
+          <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.5 }}>
+            <span style={{ fontSize: 12, color: "var(--text3)", marginRight: 6 }}>Details</span>
+            {details.details}
+          </div>
+        )}
       </div>
 
       {/* Actions */}
