@@ -3,6 +3,15 @@
 // Hooman Azari - 261055604
 
 const pool = require('../config/db');
+const crypto = require('crypto');
+
+function parseField(message, key) {
+  const line = String(message || '')
+    .split('\n')
+    .map((l) => l.trim())
+    .find((l) => l.toLowerCase().startsWith(`${key.toLowerCase()}:`));
+  return line ? line.split(':').slice(1).join(':').trim() : '';
+}
 
 /**
  * Send a meeting request to an owner
@@ -28,9 +37,10 @@ async function createMeetingRequest(req, res) {
     }
 
     // Create meeting request
-    const [result] = await pool.execute(
-      'INSERT INTO meeting_requests (requester_id, owner_id, message, status) VALUES (?, ?, ?, "pending")',
-      [requester_id, owner_id, message]
+    const requestId = crypto.randomUUID();
+    await pool.execute(
+      'INSERT INTO meeting_requests (id, requester_id, owner_id, message, status) VALUES (?, ?, ?, ?, "pending")',
+      [requestId, requester_id, owner_id, message]
     );
 
     // Create notification for owner
@@ -47,7 +57,7 @@ async function createMeetingRequest(req, res) {
        FROM meeting_requests mr
        JOIN users u ON mr.requester_id = u.id
        WHERE mr.id = ?`,
-      [result.insertId]
+      [requestId]
     );
 
     res.status(201).json(newRequest[0]);
@@ -78,6 +88,30 @@ async function getOwnerRequests(req, res) {
   } catch (err) {
     console.error('Error fetching meeting requests:', err);
     res.status(500).json({ error: 'Failed to fetch meeting requests' });
+  }
+}
+
+/**
+ * Get all meeting requests submitted by a user
+ * GET /api/meeting-requests/mine
+ */
+async function getUserRequests(req, res) {
+  const requester_id = req.user.userId;
+
+  try {
+    const [requests] = await pool.execute(
+      `SELECT mr.*, u.email as owner_email
+       FROM meeting_requests mr
+       JOIN users u ON mr.owner_id = u.id
+       WHERE mr.requester_id = ?
+       ORDER BY mr.created_at DESC`,
+      [requester_id]
+    );
+
+    res.json(requests);
+  } catch (err) {
+    console.error('Error fetching user meeting requests:', err);
+    res.status(500).json({ error: 'Failed to fetch your meeting requests' });
   }
 }
 
@@ -113,10 +147,55 @@ async function updateMeetingRequest(req, res) {
       [status, id]
     );
 
-    // Create notification for requester
-    const notifMessage = status === 'accepted' 
+    let notifMessage = status === 'accepted'
       ? 'Your meeting request was accepted!'
       : 'Your meeting request was declined.';
+
+    // Type 1 behavior: if accepted, create an appointment visible on both dashboards.
+    if (status === 'accepted') {
+      const [requesterRows] = await pool.execute(
+        'SELECT email FROM users WHERE id = ?',
+        [request.requester_id]
+      );
+      const requesterEmail = requesterRows[0]?.email || 'student';
+
+      const slotId = crypto.randomUUID();
+      const bookingId = crypto.randomUUID();
+      const requestedDate = parseField(request.message, 'Preferred date');
+      const requestedTime = parseField(request.message, 'Preferred time');
+      const requestedTopic = parseField(request.message, 'Topic');
+      const [startRaw = '', endRaw = ''] = requestedTime.split('-').map((s) => s.trim());
+
+      const startTime =
+        requestedDate && startRaw
+          ? `${requestedDate} ${startRaw.length === 5 ? `${startRaw}:00` : startRaw}`
+          : new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+      const endTime =
+        requestedDate && endRaw
+          ? `${requestedDate} ${endRaw.length === 5 ? `${endRaw}:00` : endRaw}`
+          : (() => {
+              const fallbackEnd = new Date();
+              fallbackEnd.setMinutes(fallbackEnd.getMinutes() + 30);
+              return fallbackEnd.toISOString().slice(0, 19).replace('T', ' ');
+            })();
+
+      const slotTitle = requestedTopic || `Meeting Request with ${requesterEmail}`;
+
+      await pool.execute(
+        `INSERT INTO slots (id, owner_id, title, type, status, start_time, end_time, location)
+         VALUES (?, ?, ?, 'request', 'active', ?, ?, ?)`,
+        [slotId, owner_id, slotTitle, startTime, endTime, 'TBD']
+      );
+
+      await pool.execute(
+        `INSERT INTO bookings (id, slot_id, user_id, status)
+         VALUES (?, ?, ?, 'confirmed')`,
+        [bookingId, slotId, request.requester_id]
+      );
+
+      notifMessage = 'Your meeting request was accepted and added as an appointment.';
+    }
 
     await pool.execute(
       `INSERT INTO notifications (user_id, type, message)
@@ -143,5 +222,6 @@ async function updateMeetingRequest(req, res) {
 module.exports = {
   createMeetingRequest,
   getOwnerRequests,
+  getUserRequests,
   updateMeetingRequest,
 };

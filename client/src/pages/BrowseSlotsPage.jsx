@@ -21,7 +21,16 @@ export default function BrowseSlotsPage() {
   const [booked, setBooked] = useState(null);
   const [showRequest, setShowRequest] = useState(false);
   const [requested, setRequested] = useState(null);
-  const [requestOwner, setRequestOwner] = useState(null);
+  const [expandedOwners, setExpandedOwners] = useState({});
+  const [requestForm, setRequestForm] = useState({
+    ownerId: "",
+    ownerQuery: "",
+    date: "",
+    startTime: "",
+    endTime: "",
+    topic: "",
+    details: "",
+  });
   const [loading, setLoading] = useState(true);  
 
   useEffect(() => {
@@ -71,13 +80,67 @@ export default function BrowseSlotsPage() {
   async function submitRequest(ownerId, message) {
     try {
       await createMeetingRequest(ownerId, message);
-      setRequested({ owner_email: requestOwner });
+      const selectedOwner = owners.find((owner) => String(owner.id) === String(ownerId));
+      if (selectedOwner?.email) {
+        const ownerFirstName = selectedOwner.name?.split(" ")[0] || "Professor";
+        const { date, startTime, endTime, topic, details } = requestForm;
+        const subject = encodeURIComponent("New Meeting Request");
+        const body = encodeURIComponent(
+          `Hi ${ownerFirstName},\n\n` +
+          `I am requesting an office hour meeting with the following details:\n\n` +
+          `- Preferred date: ${date}\n` +
+          `- Preferred time: ${startTime} - ${endTime}\n` +
+          `- Topic: ${topic}\n` +
+          `${details?.trim() ? `- Additional details: ${details.trim()}\n` : ""}\n` +
+          `Thanks,\n` +
+          `Sent from McBook.`
+        );
+        window.open(`mailto:${selectedOwner.email}?subject=${subject}&body=${body}`);
+      }
+      setRequested({ owner_email: selectedOwner?.email || "selected professor" });
       setShowRequest(false);
-      setRequestOwner(null);
+      setRequestForm({
+        ownerId: "",
+        ownerQuery: "",
+        date: "",
+        startTime: "",
+        endTime: "",
+        topic: "",
+        details: "",
+      });
     } catch (err) {
       console.error('Error submitting meeting request:', err);
       alert('Failed to send meeting request. ' + (err.message || ''));
     }
+  }
+
+  function openRequestModal() {
+    setRequestForm({
+      ownerId: "",
+      ownerQuery: "",
+      date: "",
+      startTime: "",
+      endTime: "",
+      topic: "",
+      details: "",
+    });
+    setShowRequest(true);
+  }
+
+  async function handleSubmitRequest() {
+    const { ownerId, date, startTime, endTime, topic, details } = requestForm;
+    if (!ownerId || !date || !startTime || !endTime || !topic.trim()) {
+      alert("Please select a professor and fill date, time, and topic.");
+      return;
+    }
+
+    const formattedMessage =
+      `Preferred date: ${date}\n` +
+      `Preferred time: ${startTime} - ${endTime}\n` +
+      `Topic: ${topic.trim()}\n` +
+      `${details.trim() ? `Details: ${details.trim()}` : ""}`;
+
+    await submitRequest(ownerId, formattedMessage.trim());
   }
 
   // Group slots by owner for display
@@ -85,6 +148,7 @@ export default function BrowseSlotsPage() {
     const email = slot.owner_email;
     if (!acc[email]) {
       acc[email] = {
+        id: slot.owner_id,
         email: email,
         name: email.split('@')[0].replace('.', ' '),
         slots: []
@@ -95,6 +159,46 @@ export default function BrowseSlotsPage() {
   }, {});
 
   const owners = Object.values(slotsByOwner);
+  const ownerClassCards = owners
+    .flatMap((owner) => {
+      const byClass = owner.slots.reduce((acc, slot) => {
+        const classTitle = (slot.title || "Untitled").trim();
+        if (!acc[classTitle]) acc[classTitle] = [];
+        acc[classTitle].push(slot);
+        return acc;
+      }, {});
+
+      return Object.entries(byClass).map(([classTitle, classSlots]) => ({
+        cardKey: `${owner.email}::${classTitle}`,
+        ownerId: owner.id,
+        ownerEmail: owner.email,
+        ownerName: owner.name,
+        classTitle,
+        slots: classSlots.sort(
+          (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+        ),
+      }));
+    })
+    .sort((a, b) => {
+      const ownerCmp = a.ownerEmail.localeCompare(b.ownerEmail);
+      if (ownerCmp !== 0) return ownerCmp;
+      return a.classTitle.localeCompare(b.classTitle);
+    });
+  const ownerMatches = requestForm.ownerQuery.trim()
+    ? owners.filter((owner) => {
+        const q = requestForm.ownerQuery.toLowerCase().trim();
+        const combined = `${owner.name} (${owner.email})`.toLowerCase();
+        return (
+          owner.name.toLowerCase().includes(q) ||
+          owner.email.toLowerCase().includes(q) ||
+          combined.includes(q)
+        );
+      })
+    : [];
+
+  function toggleOwner(email) {
+    setExpandedOwners((prev) => ({ ...prev, [email]: !prev[email] }));
+  }
 
   if (loading) {
     return (
@@ -129,6 +233,27 @@ export default function BrowseSlotsPage() {
           <p style={{ fontSize: 13.5, color: "var(--text3)" }}>
             Browse available office hours and group meetings.
           </p>
+          <button
+            onClick={openRequestModal}
+            style={{
+              marginTop: 10,
+              padding: "7px 12px",
+              background: "var(--surface2)",
+              color: "var(--text2)",
+              border: "1px solid var(--border)",
+              borderRadius: 6,
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6
+            }}
+          >
+            <Mail size={ICON_SIZE} />
+            Request a Meeting
+          </button>
         </div>
 
         {/* Success banners */}
@@ -170,60 +295,85 @@ export default function BrowseSlotsPage() {
         />
 
         {/* Results */}
-        {owners.length === 0 ? (
+        {ownerClassCards.length === 0 ? (
           <Card style={{ textAlign: "center", padding: "40px 24px", color: "var(--text3)", fontSize: 13.5 }}>
             {query.trim() ? `No results for "${query}". Try a different search.` : "No available slots at the moment."}
           </Card>
         ) : (
-          owners.map((owner, i) => (
-            <Card key={owner.email} delay={i * 0.05} style={{ marginBottom: 16 }}>
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{owner.name}</div>
-                <div style={{ fontSize: 12.5, color: "var(--text3)" }}>{owner.email}</div>
-              </div>
-              
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {owner.slots.map(slot => (
-                  <div key={slot.id} style={{
-                    padding: "10px 12px",
-                    background: "var(--surface2)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 7,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center"
-                  }}>
-                    <div>
-                      <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)" }}>{slot.title}</div>
-                      <div style={{ fontSize: 12, color: "var(--text3)" }}>
-                        {new Date(slot.start_time).toLocaleString('en-US', { 
-                          weekday: 'short', 
-                          month: 'short', 
-                          day: 'numeric', 
-                          hour: 'numeric', 
-                          minute: '2-digit' 
-                        })}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setBooking(slot)}
-                      style={{
-                        padding: "6px 14px",
-                        background: "var(--red)",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: 6,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        fontFamily: "inherit"
-                      }}
-                    >
-                      Book
-                    </button>
+          ownerClassCards.map((card, i) => (
+            <Card key={card.cardKey} delay={i * 0.05} style={{ marginBottom: 16 }}>
+              <div
+                onClick={() => toggleOwner(card.cardKey)}
+                style={{
+                  marginBottom: 12,
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  userSelect: "none"
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{card.ownerName}</div>
+                  <div style={{ fontSize: 12.5, color: "var(--text3)" }}>{card.ownerEmail}</div>
+                  <div style={{ fontSize: 12.5, color: "var(--text2)", fontWeight: 600, marginTop: 2 }}>
+                    {card.classTitle}
                   </div>
-                ))}
+                </div>
+                <div style={{ fontSize: 12.5, color: "var(--text3)", fontWeight: 600 }}>
+                  {card.slots.length} slot{card.slots.length !== 1 ? "s" : ""} {expandedOwners[card.cardKey] ? "▴" : "▾"}
+                </div>
               </div>
+
+              {expandedOwners[card.cardKey] && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {card.slots.map((slot) => (
+                    <div key={slot.id} style={{
+                      padding: "10px 12px",
+                      background: "var(--surface2)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 7,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center"
+                    }}>
+                      <div>
+                        <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)" }}>{slot.title}</div>
+                        <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                          {new Date(slot.start_time).toLocaleString('en-US', { 
+                            weekday: 'short', 
+                            month: 'short', 
+                            day: 'numeric', 
+                            hour: 'numeric', 
+                            minute: '2-digit' 
+                          })}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setBooking(slot)}
+                        style={{
+                          padding: "6px 14px",
+                          background: "var(--red)",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          fontFamily: "inherit"
+                        }}
+                      >
+                        Book
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!expandedOwners[card.cardKey] && (
+                <div style={{ fontSize: 12.5, color: "var(--text3)" }}>
+                  Click to view available slots
+                </div>
+              )}
             </Card>
           ))
         )}
@@ -257,6 +407,196 @@ export default function BrowseSlotsPage() {
               </button>
               <button
                 onClick={() => setBooking(null)}
+                style={{
+                  flex: 1, padding: "10px", background: "var(--surface2)", color: "var(--text2)",
+                  border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "inherit"
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Type 1 Request modal */}
+      {showRequest && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 24, zIndex: 1000
+        }}>
+          <div style={{
+            background: "var(--surface)", borderRadius: 12, padding: 24,
+            maxWidth: 460, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)"
+          }}>
+            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Request a Meeting</h3>
+            <p style={{ fontSize: 13.5, color: "var(--text3)", marginBottom: 14 }}>
+              Choose a professor, preferred time, and your meeting topic.
+            </p>
+            <input
+              value={requestForm.ownerQuery}
+              onChange={(e) =>
+                setRequestForm((prev) => ({
+                  ...prev,
+                  ownerQuery: e.target.value,
+                  ownerId: "",
+                }))
+              }
+              placeholder="Search professor by name or email"
+              style={{
+                width: "100%",
+                marginBottom: 10,
+                padding: "10px 12px",
+                borderRadius: 8,
+                border: "1px solid var(--border)",
+                background: "var(--surface2)",
+                color: "var(--text)",
+                fontFamily: "inherit",
+                fontSize: 13
+              }}
+            />
+            {requestForm.ownerQuery.trim() && !requestForm.ownerId && (
+              <div
+                style={{
+                  maxHeight: 140,
+                  overflowY: "auto",
+                  marginBottom: 10,
+                  border: "1px solid var(--border)",
+                  borderRadius: 8,
+                  background: "var(--surface2)",
+                }}
+              >
+                {ownerMatches.length === 0 ? (
+                  <div style={{ padding: "10px 12px", fontSize: 12.5, color: "var(--text3)" }}>
+                    No matching professors found.
+                  </div>
+                ) : (
+                  ownerMatches.slice(0, 8).map((owner) => {
+                    const selected = String(requestForm.ownerId) === String(owner.id);
+                    return (
+                      <button
+                        key={owner.id}
+                        onClick={() =>
+                          setRequestForm((prev) => ({
+                            ...prev,
+                            ownerId: owner.id,
+                            ownerQuery: `${owner.name} (${owner.email})`,
+                          }))
+                        }
+                        style={{
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "9px 12px",
+                          border: "none",
+                          borderBottom: "1px solid var(--border)",
+                          background: selected ? "rgba(232,25,44,0.08)" : "transparent",
+                          color: "var(--text)",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                          fontSize: 12.5,
+                        }}
+                      >
+                        {owner.name} ({owner.email})
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              <input
+                type="date"
+                value={requestForm.date}
+                onChange={(e) => setRequestForm((prev) => ({ ...prev, date: e.target.value }))}
+                style={{
+                  flex: 1,
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "1px solid var(--border)",
+                  background: "var(--surface2)",
+                  color: "var(--text)",
+                  fontFamily: "inherit",
+                  fontSize: 13
+                }}
+              />
+              <input
+                type="time"
+                value={requestForm.startTime}
+                onChange={(e) => setRequestForm((prev) => ({ ...prev, startTime: e.target.value }))}
+                style={{
+                  flex: 1,
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "1px solid var(--border)",
+                  background: "var(--surface2)",
+                  color: "var(--text)",
+                  fontFamily: "inherit",
+                  fontSize: 13
+                }}
+              />
+              <input
+                type="time"
+                value={requestForm.endTime}
+                onChange={(e) => setRequestForm((prev) => ({ ...prev, endTime: e.target.value }))}
+                style={{
+                  flex: 1,
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "1px solid var(--border)",
+                  background: "var(--surface2)",
+                  color: "var(--text)",
+                  fontFamily: "inherit",
+                  fontSize: 13
+                }}
+              />
+            </div>
+            <input
+              value={requestForm.topic}
+              onChange={(e) => setRequestForm((prev) => ({ ...prev, topic: e.target.value }))}
+              placeholder="Meeting topic *"
+              style={{
+                width: "100%",
+                marginBottom: 10,
+                padding: "10px 12px",
+                borderRadius: 8,
+                border: "1px solid var(--border)",
+                background: "var(--surface2)",
+                color: "var(--text)",
+                fontFamily: "inherit",
+                fontSize: 13
+              }}
+            />
+            <textarea
+              value={requestForm.details}
+              onChange={(e) => setRequestForm((prev) => ({ ...prev, details: e.target.value }))}
+              placeholder="Additional details (optional)"
+              style={{
+                width: "100%",
+                minHeight: 90,
+                padding: "10px 12px",
+                borderRadius: 8,
+                border: "1px solid var(--border)",
+                background: "var(--surface2)",
+                color: "var(--text)",
+                fontFamily: "inherit",
+                fontSize: 13
+              }}
+            />
+            <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+              <button
+                onClick={handleSubmitRequest}
+                style={{
+                  flex: 1, padding: "10px", background: "var(--red)", color: "#fff",
+                  border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "inherit"
+                }}
+              >
+                Send request
+              </button>
+              <button
+                onClick={() => { setShowRequest(false); }}
                 style={{
                   flex: 1, padding: "10px", background: "var(--surface2)", color: "var(--text2)",
                   border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, fontWeight: 600,

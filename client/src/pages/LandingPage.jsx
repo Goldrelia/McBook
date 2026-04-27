@@ -19,6 +19,9 @@ const FEATURES = [
 export default function LandingPage() {
   const navigate = useNavigate();
   const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
+  const token = localStorage.getItem("mcbook-token");
+  const role = localStorage.getItem("mcbook-role");
+  const homeRoute = token ? (role === "owner" ? "/owner/dashboard" : "/dashboard") : "/login";
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -39,7 +42,7 @@ export default function LandingPage() {
           { label: "About Us", onClick: () => navigate("/about") },
         ]}
         actions={[
-          { label: "Log in →", variant: "ghost", onClick: () => navigate("/login") },
+          { label: token ? "Dashboard →" : "Log in →", variant: "ghost", onClick: () => navigate(homeRoute) },
         ]}
       />
 
@@ -81,7 +84,7 @@ export default function LandingPage() {
         {/* CTA */}
         <div className="mc-anim-1" style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => navigate(homeRoute)}
             style={{
               padding: "12px 28px", borderRadius: 9, border: "none",
               background: "var(--red)", color: "#fff",
@@ -92,7 +95,7 @@ export default function LandingPage() {
             onMouseEnter={e => e.currentTarget.style.opacity = "0.88"}
             onMouseLeave={e => e.currentTarget.style.opacity = "1"}
           >
-            Get started →
+            {token ? "Go to dashboard →" : "Get started →"}
           </button>
           <button
             onClick={() => navigate("/about")}
