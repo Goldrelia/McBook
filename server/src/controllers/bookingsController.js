@@ -1,6 +1,7 @@
 // Authors:
 // Derek Long - 261161918
 // Wei-Sen Wang - 261116291
+// Aurelia Bouliane - 261118164
 
 const pool = require('../config/db');
 const crypto = require('crypto');
