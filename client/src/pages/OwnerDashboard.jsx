@@ -470,7 +470,16 @@ export default function OwnerDashboard() {
         ]}
         actions={[
           { label: "+ New slot", variant: "red", onClick: () => setShowCreate(true) },
-          { label: "Log out", variant: "outline", onClick: () => { localStorage.removeItem("mcbook-token"); navigate("/login"); } },
+          {
+            label: "Log out",
+            variant: "outline",
+            onClick: () => {
+              localStorage.removeItem("mcbook-token");
+              localStorage.removeItem("mcbook-role");
+              localStorage.removeItem("mcbook-email");
+              navigate("/login");
+            },
+          },
         ]}
       />
 

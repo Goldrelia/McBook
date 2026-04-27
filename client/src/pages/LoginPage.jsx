@@ -61,8 +61,10 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Login failed');
 
+      localStorage.removeItem('mcbook-email');
       localStorage.setItem('mcbook-token', data.token);
       localStorage.setItem('mcbook-role', data.role);
+      localStorage.setItem('mcbook-email', (data.email || email).trim().toLowerCase());
 
       // Check if there's a redirect URL in query params
       const params = new URLSearchParams(window.location.search);

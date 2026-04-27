@@ -136,6 +136,8 @@ export default function Dashboard() {
 
   function handleLogout() {
     localStorage.removeItem("mcbook-token");
+    localStorage.removeItem("mcbook-role");
+    localStorage.removeItem("mcbook-email");
     navigate("/login");
   }
 
