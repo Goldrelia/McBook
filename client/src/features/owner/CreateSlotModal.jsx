@@ -15,7 +15,7 @@ const ICON_SIZE = 13;
 //   onSave  — function(slotObject)
 // ─────────────────────────────────────────────────────────────────
 export function CreateSlotModal({ onClose, onSave }) {
-  const [modalTab, setModalTab] = useState("type1");
+  const [modalTab, setModalTab] = useState("type2");
 
   return (
     <div
@@ -38,7 +38,6 @@ export function CreateSlotModal({ onClose, onSave }) {
         {/* Type tabs */}
         <div style={{ display: "flex", gap: 2, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, padding: 3, marginBottom: 22 }}>
           {[
-            { key: "type1", label: "Type 1" },
             { key: "type2", label: "Type 2" },
             { key: "type3", label: "Type 3" },
           ].map(t => (
@@ -59,12 +58,10 @@ export function CreateSlotModal({ onClose, onSave }) {
           ))}
         </div>
         <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 16, marginTop: -14 }}>
-          {modalTab === "type1" && "Meeting Request — owner accepts/declines user requests"}
           {modalTab === "type2" && "Group Meeting — participants vote on available times"}
           {modalTab === "type3" && "Recurring Office Hours — open slots anyone can reserve"}
         </div>
 
-        {modalTab === "type1" && <Type1Form onClose={onClose} onSave={onSave} />}
         {modalTab === "type2" && <Type2Form onClose={onClose} onSave={onSave} />}
         {modalTab === "type3" && <Type3Form onClose={onClose} onSave={onSave} />}
       </div>
@@ -338,34 +335,21 @@ function Type3Form({ onClose, onSave }) {
   function handleSave() {
     if (!isValid) return;
 
-    // Get the first slot to use as the base time
-    const firstSlot = form.slots[0];
-
-    // Calculate the next occurrence of the day
-    // E.g., if today is Thursday and slot is Monday, find next Monday
-    const dayMap = { Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6, Sunday: 0 };
-    const targetDay = dayMap[firstSlot.day];
-    const today = new Date();
-    const currentDay = today.getDay();
-    const daysUntilTarget = (targetDay - currentDay + 7) % 7 || 7; // If 0, use 7 (next week)
-
-    const nextDate = new Date(today);
-    nextDate.setDate(today.getDate() + daysUntilTarget);
-    const dateStr = nextDate.toISOString().split('T')[0]; // "2024-12-22"
-
-    // Extract start and end times
-    const [timeStart, timeEnd] = firstSlot.time.split(' – ');
-
     onSave({
       title: form.title,
       type: "office_hours",
       status: "active",
-      date: dateStr,  // Actual date: "2024-12-22"
-      time_start: timeStart,  // "2:15pm"
-      time_end: timeEnd,  // "6:15pm"
+      // Kept for backwards compatibility with API validation.
+      date: new Date().toISOString().split("T")[0],
+      time_start: "9:00am",
+      time_end: "9:30am",
       location: form.location || "TBD",
       is_recurring: true,
       recurrence_weeks: parseInt(form.weeks),
+      weekly_slots: form.slots.map(s => {
+        const [start, end] = s.time.split(' – ');
+        return { day: s.day, time_start: start, time_end: end };
+      }),
     });
   }
 

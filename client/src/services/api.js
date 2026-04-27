@@ -27,7 +27,20 @@ async function apiCall(endpoint, options = {}) {
     throw new Error(error.error || 'API request failed');
   }
 
-  return response.json();
+  if (response.status === 204) {
+    return {};
+  }
+
+  const text = await response.text();
+  if (!text) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
 }
 
 // ==================== AUTHENTICATION ====================
@@ -54,6 +67,9 @@ export const updateSlot = (id, updates) =>
 
 export const deleteSlot = (id) =>
   apiCall(`/slots/${id}`, { method: 'DELETE' });
+
+export const deleteSlotSeries = (id) =>
+  apiCall(`/slots/${id}/series`, { method: 'DELETE' });
 
 export const finalizeGroupSlot = (id, selectedTime, isRecurring, recurrenceWeeks) =>
   apiCall(`/slots/${id}/finalize`, {
@@ -92,6 +108,9 @@ export const createMeetingRequest = (ownerId, message) =>
 
 export const getOwnerRequests = () => 
   apiCall('/meeting-requests');
+
+export const getMyMeetingRequests = () =>
+  apiCall('/meeting-requests/mine');
 
 export const updateMeetingRequest = (id, status) =>
   apiCall(`/meeting-requests/${id}`, {

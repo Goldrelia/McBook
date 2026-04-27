@@ -41,11 +41,19 @@ async function createSlot(req, res) {
     recurrence_weeks,
     location,
     group_slot_options,
+    weekly_slots,
   } = req.body;
   const owner_id = req.user.userId;
 
   // Validation
-  if (!type || !start_time || !end_time) {
+  const hasOfficeHoursBatch =
+    type === "office_hours" &&
+    Array.isArray(weekly_slots) &&
+    weekly_slots.length > 0 &&
+    is_recurring &&
+    recurrence_weeks > 0;
+
+  if (!type || ((!start_time || !end_time) && !hasOfficeHoursBatch)) {
     return res
       .status(400)
       .json({ error: "Missing required fields: type, start_time, end_time" });
@@ -58,6 +66,91 @@ async function createSlot(req, res) {
   }
 
   try {
+    // Type 3: create one concrete slot for each weekly slot x week.
+    if (
+      type === "office_hours" &&
+      Array.isArray(weekly_slots) &&
+      weekly_slots.length > 0 &&
+      is_recurring &&
+      recurrence_weeks > 0
+    ) {
+      const dayMap = {
+        Sunday: 0,
+        Monday: 1,
+        Tuesday: 2,
+        Wednesday: 3,
+        Thursday: 4,
+        Friday: 5,
+        Saturday: 6,
+      };
+
+      const today = new Date();
+      const createdIds = [];
+
+      for (const weeklySlot of weekly_slots) {
+        const targetDay = dayMap[weeklySlot.day];
+        if (targetDay === undefined) continue;
+
+        const [startHour, startMinute] = convertTo24Hour(weeklySlot.time_start)
+          .split(":")
+          .map(Number);
+        const [endHour, endMinute] = convertTo24Hour(weeklySlot.time_end)
+          .split(":")
+          .map(Number);
+
+        const currentDay = today.getDay();
+        const daysUntilTarget = (targetDay - currentDay + 7) % 7 || 7;
+        const firstDate = new Date(today);
+        firstDate.setDate(today.getDate() + daysUntilTarget);
+
+        for (let week = 0; week < recurrence_weeks; week++) {
+          const slotDate = new Date(firstDate);
+          slotDate.setDate(firstDate.getDate() + week * 7);
+
+          const startDateTime = new Date(slotDate);
+          startDateTime.setHours(startHour, startMinute, 0, 0);
+
+          const endDateTime = new Date(slotDate);
+          endDateTime.setHours(endHour, endMinute, 0, 0);
+
+          const slotId = crypto.randomUUID();
+          createdIds.push(slotId);
+
+          await pool.execute(
+            `INSERT INTO slots (id, owner_id, title, type, status, start_time, end_time, is_recurring, recurrence_weeks, invite_token, location)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              slotId,
+              owner_id,
+              title,
+              type,
+              status || "active",
+              startDateTime.toISOString().slice(0, 19).replace("T", " "),
+              endDateTime.toISOString().slice(0, 19).replace("T", " "),
+              1,
+              recurrence_weeks,
+              null,
+              location || "TBD",
+            ]
+          );
+        }
+      }
+
+      if (createdIds.length === 0) {
+        return res.status(400).json({ error: "No valid weekly slots provided" });
+      }
+
+      const [rows] = await pool.execute(
+        `SELECT * FROM slots WHERE id IN (${createdIds.map(() => "?").join(",")}) ORDER BY start_time ASC`,
+        createdIds
+      );
+
+      return res.status(201).json({
+        created_count: rows.length,
+        slots: rows,
+      });
+    }
+
     const slotId = crypto.randomUUID();
     const invite_token =
       type === "group" ? crypto.randomBytes(16).toString("hex") : null;
@@ -353,6 +446,90 @@ async function deleteSlot(req, res) {
 }
 
 /**
+ * Delete an entire recurring series based on a slot instance
+ * DELETE /api/slots/:id/series
+ */
+async function deleteRecurringSeries(req, res) {
+  const { id } = req.params;
+  const owner_id = req.user.userId;
+
+  try {
+    const [slots] = await pool.execute(
+      "SELECT * FROM slots WHERE id = ? AND owner_id = ?",
+      [id, owner_id]
+    );
+
+    if (slots.length === 0) {
+      return res.status(404).json({ error: "Slot not found or unauthorized" });
+    }
+
+    const seed = slots[0];
+    if (!seed.is_recurring) {
+      return res.status(400).json({ error: "Slot is not recurring" });
+    }
+
+    const [seriesSlots] = await pool.execute(
+      `SELECT id
+       FROM slots
+       WHERE owner_id = ?
+         AND is_recurring = 1
+         AND type = ?
+         AND title = ?
+         AND location = ?
+         AND recurrence_weeks = ?
+         AND DAYOFWEEK(start_time) = DAYOFWEEK(?)
+         AND TIME(start_time) = TIME(?)
+         AND TIME(end_time) = TIME(?)`,
+      [
+        owner_id,
+        seed.type,
+        seed.title,
+        seed.location,
+        seed.recurrence_weeks,
+        seed.start_time,
+        seed.start_time,
+        seed.end_time,
+      ]
+    );
+
+    if (seriesSlots.length === 0) {
+      return res.status(404).json({ error: "No recurring series found" });
+    }
+
+    const slotIds = seriesSlots.map((s) => s.id);
+    const placeholders = slotIds.map(() => "?").join(",");
+
+    const [bookings] = await pool.execute(
+      `SELECT DISTINCT b.user_id
+       FROM bookings b
+       WHERE b.slot_id IN (${placeholders})`,
+      slotIds
+    );
+
+    for (const booking of bookings) {
+      await pool.execute(
+        `INSERT INTO notifications (user_id, type, message)
+         VALUES (?, 'slot_deleted', ?)`,
+        [booking.user_id, `Your recurring booking series "${seed.title}" has been cancelled by the owner.`]
+      );
+    }
+
+    await pool.execute(
+      `DELETE FROM slots WHERE id IN (${placeholders})`,
+      slotIds
+    );
+
+    res.json({
+      message: "Recurring series deleted successfully",
+      deleted_count: slotIds.length,
+    });
+  } catch (err) {
+    console.error("Error deleting recurring series:", err);
+    res.status(500).json({ error: "Failed to delete recurring series" });
+  }
+}
+
+/**
  * Get all active slots (for student browsing)
  * GET /api/slots/browse
  */
@@ -362,7 +539,13 @@ async function browseSlots(req, res) {
       `SELECT s.*, u.email as owner_email 
        FROM slots s 
        JOIN users u ON s.owner_id = u.id 
-       WHERE s.status = 'active' 
+       WHERE s.status = 'active'
+         AND NOT EXISTS (
+           SELECT 1
+           FROM bookings b
+           WHERE b.slot_id = s.id
+             AND b.status = 'confirmed'
+         )
        ORDER BY s.start_time ASC`,
     );
 
@@ -510,6 +693,7 @@ module.exports = {
   getSlotOptions,
   updateSlot,
   deleteSlot,
+  deleteRecurringSeries,
   browseSlots,
   getSlotByInvite,
   finalizeGroupSlot,

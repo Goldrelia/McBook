@@ -19,6 +19,23 @@ export default function Navbar({ theme, onToggle, navLinks = [], actions = [], t
   const navigate = useNavigate();
   const isMobile = useWindowWidth() < 768;
   const [open, setOpen] = useState(false);
+  const token = localStorage.getItem("mcbook-token");
+  const role = localStorage.getItem("mcbook-role");
+  const email = localStorage.getItem("mcbook-email") || "";
+  const loggedInLabel = (() => {
+    const localPart = email.split("@")[0] || "";
+    const first = localPart.split(".")[0] || localPart;
+    if (!first) return role === "owner" ? "Owner" : "Student";
+    return first.charAt(0).toUpperCase() + first.slice(1);
+  })();
+
+  function navigateHome() {
+    if (token) {
+      navigate(role === "owner" ? "/owner/dashboard" : "/dashboard");
+      return;
+    }
+    navigate("/");
+  }
 
   const navStyle = transparent
     ? {
@@ -41,7 +58,7 @@ export default function Navbar({ theme, onToggle, navLinks = [], actions = [], t
       <nav style={navStyle}>
         {/* Logo + wordmark */}
         <button
-          onClick={() => navigate("/")}
+          onClick={navigateHome}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}
           aria-label="Home"
         >
@@ -65,6 +82,26 @@ export default function Navbar({ theme, onToggle, navLinks = [], actions = [], t
 
         {/* Right — theme toggle + buttons */}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
+          {token && !isMobile && (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: "var(--text2)",
+                background: "var(--surface2)",
+                border: "1px solid var(--border)",
+                borderRadius: 999,
+                padding: "5px 10px",
+              }}
+              title="You are logged in"
+            >
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#10b981" }} />
+              Signed in as {loggedInLabel}
+            </div>
+          )}
           <button
             onClick={onToggle}
             style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", display: "flex", alignItems: "center", padding: 4, borderRadius: 6 }}
@@ -133,8 +170,25 @@ export default function Navbar({ theme, onToggle, navLinks = [], actions = [], t
             )}
 
             {/* Action buttons */}
-            {actions.length > 0 && (
+            {(token || actions.length > 0) && (
               <div style={{ padding: "12px" }}>
+                {token && (
+                  <div
+                    style={{
+                      width: "100%",
+                      padding: "11px 12px",
+                      borderRadius: 8,
+                      background: "var(--surface2)",
+                      color: "var(--text2)",
+                      fontWeight: 600,
+                      fontSize: 14,
+                      marginBottom: 8,
+                      border: "1px solid var(--border)",
+                    }}
+                  >
+                    Signed in as {loggedInLabel}
+                  </div>
+                )}
                 {actions.map((action, i) => (
                   <button key={i} onClick={() => { action.onClick(); setOpen(false); }}
                     style={{ width: "100%", textAlign: "left", padding: "11px 12px", borderRadius: 8, border: "none", background: action.variant === "red" ? "var(--red)" : "transparent", color: action.variant === "red" ? "#fff" : "var(--text2)", fontWeight: 600, fontSize: 15, fontFamily: "inherit", cursor: "pointer", display: "block", marginBottom: 2 }}>

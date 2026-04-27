@@ -66,6 +66,9 @@ const TECH_STACK = [
 export default function AboutPage() {
   const navigate = useNavigate();
   const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
+  const token = localStorage.getItem("mcbook-token");
+  const role = localStorage.getItem("mcbook-role");
+  const homeRoute = token ? (role === "owner" ? "/owner/dashboard" : "/dashboard") : "/";
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -79,10 +82,13 @@ export default function AboutPage() {
         theme={theme}
         onToggle={() => setTheme(t => t === "light" ? "dark" : "light")}
         navLinks={[
+          { label: token ? "Dashboard" : "Landing", onClick: () => navigate(homeRoute) },
           { label: "About Us", onClick: () => navigate("/about"), active: true },
         ]}
         actions={[
-          { label: "Log in →", variant: "ghost", onClick: () => navigate("/login") },
+          token
+            ? { label: "Back to Dashboard", variant: "ghost", onClick: () => navigate(homeRoute) }
+            : { label: "Log in →", variant: "ghost", onClick: () => navigate("/login") },
         ]}
       />
 

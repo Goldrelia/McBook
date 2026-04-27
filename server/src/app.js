@@ -19,23 +19,24 @@ const apiRoutes = require('./routes/api');
 // ==================== AUTHENTICATION ====================
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
+  const normalizedEmail = String(email || '').trim().toLowerCase();
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password required' });
   }
 
   try {
     // Determine role based on email domain
-    const role = email.endsWith('@mcgill.ca') ? 'owner' : 'student';
+    const role = normalizedEmail.endsWith('@mcgill.ca') ? 'owner' : 'student';
 
     // Check if user exists
-    const [rows] = await pool.execute('SELECT id, password_hash, role FROM users WHERE email = ?', [email]);
+    const [rows] = await pool.execute('SELECT id, password_hash, role FROM users WHERE email = ?', [normalizedEmail]);
     let userId;
     let userRole;
 
     if (rows.length === 0) {
       // Create new user
       const hashedPassword = await bcrypt.hash(password, 10);
-      const [result] = await pool.execute('INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)', [email, hashedPassword, role]);
+      const [result] = await pool.execute('INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)', [normalizedEmail, hashedPassword, role]);
       userId = result.insertId;
       userRole = role;
     } else {
@@ -49,9 +50,9 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     // Generate JWT
-    const token = jwt.sign({ userId, role: userRole }, process.env.JWT_SECRET || 'your-secret-key', { expiresIn: '7d' });
+    const token = jwt.sign({ userId, role: userRole, email: normalizedEmail }, process.env.JWT_SECRET || 'your-secret-key', { expiresIn: '7d' });
 
-    res.json({ token, role: userRole, userId });
+    res.json({ token, role: userRole, userId, email: normalizedEmail });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

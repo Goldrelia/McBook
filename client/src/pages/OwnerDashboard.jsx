@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Btn from "../components/Btn";
 import Card from "../components/Card";
@@ -16,10 +16,12 @@ import RequestCard from "../features/owner/RequestCard";
 import { CreateSlotModal, FinalizeGroupModal } from "../features/owner/CreateSlotModal";
 import { MOCK_SLOTS, MOCK_REQUESTS } from "../features/owner/mockData";
 import useWindowWidth from "../hooks/useWindowWidth";
-import { createSlot, getOwnerSlots, getOwnerRequests, finalizeGroupMeeting } from "../services/api";
+import { createSlot, getOwnerSlots, getOwnerRequests, finalizeGroupMeeting, deleteSlotSeries as apiDeleteSlotSeries } from "../services/api";
 
 const TABS = [
-  { key: "slots", label: "My Slots" },
+  { key: "all_slots", label: "All Slots" },
+  { key: "booked_slots", label: "Booked Slots" },
+  { key: "free_slots", label: "Free Slots" },
   { key: "requests", label: "Meeting Requests" },
 ];
 
@@ -37,7 +39,7 @@ export default function OwnerDashboard() {
   const navigate = useNavigate();
   const isMobile = useWindowWidth() < 768;
   const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
-  const [tab, setTab] = useState("slots");
+  const [tab, setTab] = useState("all_slots");
   const [slots, setSlots] = useState([]);
   const [requests, setRequests] = useState([]);
   const [search, setSearch] = useState("");
@@ -45,7 +47,9 @@ export default function OwnerDashboard() {
   const [deleteSlotId, setDeleteSlotId] = useState(null);
   const [copiedToken, setCopiedToken] = useState(null);
   const [finalizeSlot, setFinalizeSlot] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [titleFilter, setTitleFilter] = useState("all");
+  const [meetingTypeFilter, setMeetingTypeFilter] = useState("all");
+  const [expandedRecurringGroups, setExpandedRecurringGroups] = useState({});
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -62,23 +66,43 @@ export default function OwnerDashboard() {
       const data = await getOwnerSlots();
       const transformedSlots = data.map(slot => {
         const totalVoters = slot.voter_count || 0;
+        const confirmedBookings = (slot.bookings || []).filter(
+          (b) => (b.status || "confirmed") === "confirmed"
+        );
+        const groupSlots = (slot.group_slot_options || []).map(opt => {
+          const dateOnly = String(opt.option_date).split("T")[0];
+          const start = new Date(`${dateOnly}T${opt.start_time}`);
+          const end = new Date(`${dateOnly}T${opt.end_time}`);
+          const date = start.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+          const startLabel = start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+          const endLabel = end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+          return {
+            id: opt.id,
+            date,
+            time: `${startLabel} – ${endLabel}`,
+            votes: opt.vote_count || 0
+          };
+        });
 
         return {
           ...slot,
           date: formatDate(slot.start_time),
           time: formatTime(slot.start_time, slot.end_time),
           location: slot.location || 'TBD',
-          bookings: slot.bookings || [],
+          bookings: confirmedBookings,
           group_slot_options: slot.group_slot_options || [],
+          group_slots: groupSlots,
           totalVoters
         };
       });
       setSlots(transformedSlots);
     } catch (err) {
       console.error('Failed to load slots:', err);
-      alert('Failed to load slots. Please try again.');
-    } finally {
-      setLoading(false);
+      if (String(err.message).includes("Owner access required")) {
+        alert('Owner access required. Please log in with an @mcgill.ca account.');
+      } else {
+        alert('Failed to load slots. Please try again.');
+      }
     }
   }
 
@@ -105,7 +129,9 @@ export default function OwnerDashboard() {
   async function loadRequests() {
     try {
       const data = await getOwnerRequests();
-      const transformedRequests = data.map(req => ({
+      const transformedRequests = data
+        .filter(req => req.status === "pending")
+        .map(req => ({
         ...req,
         user: req.requester_email?.split('@')[0].replace('.', ' ') || 'Student',
         email: req.requester_email
@@ -113,6 +139,9 @@ export default function OwnerDashboard() {
       setRequests(transformedRequests);
     } catch (err) {
       console.error('Failed to load requests:', err);
+      if (String(err.message).includes("Owner access required")) {
+        alert('Owner access required. Please log in with an @mcgill.ca account.');
+      }
     }
   }
 
@@ -179,6 +208,49 @@ export default function OwnerDashboard() {
 
   }
 
+  async function deleteRecurringGroup(recurringSlots, label) {
+    if (recurringSlots.length === 0) {
+      alert(`No recurring slots found for "${label}".`);
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete all recurring series for "${label}"?`
+    );
+    if (!confirmed) return;
+
+    const seriesSeeds = [];
+    const seen = new Set();
+    for (const slot of recurringSlots) {
+      const start = new Date(slot.start_time);
+      const end = new Date(slot.end_time);
+      const key = [
+        slot.title,
+        slot.location,
+        start.getDay(),
+        start.getHours(),
+        start.getMinutes(),
+        end.getHours(),
+        end.getMinutes(),
+        slot.recurrence_weeks,
+      ].join("|");
+      if (!seen.has(key)) {
+        seen.add(key);
+        seriesSeeds.push(slot);
+      }
+    }
+
+    try {
+      for (const seed of seriesSeeds) {
+        await apiDeleteSlotSeries(seed.id);
+      }
+      await loadSlots();
+    } catch (err) {
+      console.error("Error deleting recurring class series:", err);
+      alert("Failed to delete recurring class series: " + err.message);
+    }
+  }
+
   function copyInviteLink(token) {
     const url = `${window.location.origin}/vote/${token}`;
     navigator.clipboard.writeText(url);
@@ -187,11 +259,9 @@ export default function OwnerDashboard() {
   }
 
   async function handleRequest(id, action) {
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: action } : r));
     const req = requests.find(r => r.id === id);
-    if (action === "accepted") {
-      window.open(`mailto:${req.email}?subject=Meeting Request Accepted&body=Hi ${req.user.split(" ")[0]},%0A%0AYour meeting request has been accepted. I will follow up with a confirmed time shortly.%0A%0ABest regards`);
-    }
+    const previousRequests = requests;
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: action } : r));
 
     try {
       const res = await fetch(`http://localhost:3000/api/meeting-requests/${id}`, {
@@ -204,11 +274,41 @@ export default function OwnerDashboard() {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to update request");
+        const errorBody = await res.json().catch(() => ({}));
+        throw new Error(errorBody.error || "Failed to update request");
+      }
+
+      if (action === "accepted" && req?.email) {
+        const firstName = req.user?.split(" ")[0] || "there";
+        const subject = encodeURIComponent("Meeting Request Accepted");
+        const body = encodeURIComponent(
+          `Hi ${firstName},\n\nYour meeting request has been accepted.\n\nBest regards`
+        );
+        window.open(`mailto:${req.email}?subject=${subject}&body=${body}`);
+      }
+      if (action === "declined" && req?.email) {
+        const firstName = req.user?.split(" ")[0] || "there";
+        const subject = encodeURIComponent("Meeting Request Declined");
+        const body = encodeURIComponent(
+          `Hi ${firstName},\n\nYour meeting request has been declined.\n\nBest regards`
+        );
+        window.open(`mailto:${req.email}?subject=${subject}&body=${body}`);
+      }
+
+      await loadRequests();
+
+      // Accepted requests should immediately surface as appointments.
+      if (action === "accepted") {
+        await loadSlots();
       }
     } catch (err) {
       console.error("Error updating request:", err);
-      setRequests(prev => prev.map(r => r.id === id ? { ...r, status: "pending" } : r));
+      if (String(err.message).includes("Owner access required")) {
+        alert('Owner access required. Please log in with an @mcgill.ca account.');
+      } else {
+        alert(`Failed to update request: ${err.message}`);
+      }
+      setRequests(previousRequests);
     }
   }
 
@@ -240,7 +340,8 @@ export default function OwnerDashboard() {
       end_time: `${slot.date} ${convertTo24Hour(slot.time_end)}`,
       location: slot.location,
       is_recurring: slot.is_recurring || false,
-      recurrence_weeks: slot.recurrence_weeks || null
+      recurrence_weeks: slot.recurrence_weeks || null,
+      weekly_slots: slot.weekly_slots || null
     };
   }
 
@@ -261,18 +362,8 @@ export default function OwnerDashboard() {
   async function addSlot(slot) {
     try {
       const transformedSlot = transformSlotForAPI(slot);
-      const newSlot = await createSlot(transformedSlot);
-
-      // Transform the new slot to match the format expected by UI
-      const transformedNewSlot = {
-        ...newSlot,
-        date: formatDate(newSlot.start_time),
-        time: formatTime(newSlot.start_time, newSlot.end_time),
-        location: newSlot.location || 'TBD',
-        bookings: newSlot.bookings || []  // Ensure bookings is always an array
-      };
-
-      setSlots(prev => [...prev, transformedNewSlot]);
+      await createSlot(transformedSlot);
+      await loadSlots();
       setShowCreate(false);
 
     } catch (err) {
@@ -304,12 +395,62 @@ export default function OwnerDashboard() {
   }
 
   const pendingCount = requests.filter(r => r.status === "pending").length;
+  const getConfirmedBookingCount = (slot) =>
+    (slot.bookings || []).filter((b) => (b.status || "confirmed") === "confirmed").length;
+  const slotTitleOptions = Array.from(
+    new Set(
+      slots
+        .filter((s) => s.type !== "request")
+        .map((s) => s.title)
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b));
+  const meetingTypeOptions = [
+    { key: "all", label: "All Types" },
+    { key: "single_office_hours", label: "Single Office Hours" },
+    { key: "group", label: "Group Meeting" },
+    { key: "recurring", label: "Recurring" },
+  ];
 
   const filteredSlots = slots.filter(s => {
+    const confirmedCount = getConfirmedBookingCount(s);
+    if (tab === "booked_slots" && confirmedCount === 0) return false;
+    if (tab === "free_slots" && confirmedCount > 0) return false;
+    if (tab === "requests") return false;
+
+    if (titleFilter !== "all" && s.title !== titleFilter) {
+      return false;
+    }
+
+    if (meetingTypeFilter === "recurring" && !s.is_recurring) return false;
+    if (meetingTypeFilter === "group" && s.type !== "group") return false;
+    if (
+      meetingTypeFilter === "single_office_hours" &&
+      !((s.type === "office_hours" && !s.is_recurring) || s.type === "request")
+    ) {
+      return false;
+    }
+
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return s.title.toLowerCase().includes(q) || s.bookings.some(b => b.user.toLowerCase().includes(q));
   });
+  const sortedFilteredSlots = [...filteredSlots].sort(
+    (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+  );
+
+  const recurringGrouped = sortedFilteredSlots
+    .filter((s) => s.is_recurring)
+    .reduce((acc, slot) => {
+      const key = slot.title || "Untitled";
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(slot);
+      return acc;
+    }, {});
+  const recurringGroupEntries = Object.entries(recurringGrouped).map(([title, groupSlots]) => ({
+    title,
+    slots: groupSlots.sort((a, b) => new Date(a.start_time) - new Date(b.start_time)),
+  }));
 
   const filteredRequests = requests.filter(r => {
     if (!search.trim()) return true;
@@ -329,7 +470,16 @@ export default function OwnerDashboard() {
         ]}
         actions={[
           { label: "+ New slot", variant: "red", onClick: () => setShowCreate(true) },
-          { label: "Log out", variant: "outline", onClick: () => { localStorage.removeItem("mcbook-token"); navigate("/login"); } },
+          {
+            label: "Log out",
+            variant: "outline",
+            onClick: () => {
+              localStorage.removeItem("mcbook-token");
+              localStorage.removeItem("mcbook-role");
+              localStorage.removeItem("mcbook-email");
+              navigate("/login");
+            },
+          },
         ]}
       />
 
@@ -340,7 +490,7 @@ export default function OwnerDashboard() {
             Owner Dashboard
           </h1>
           <p style={{ fontSize: 13.5, color: "var(--text3)" }}>
-            {slots.length} slots &nbsp;·&nbsp; {slots.reduce((a, s) => a + s.bookings.length, 0)} total bookings &nbsp;·&nbsp; {pendingCount} pending requests
+            {slots.length} slots &nbsp;·&nbsp; {slots.reduce((a, s) => a + getConfirmedBookingCount(s), 0)} total bookings &nbsp;·&nbsp; {pendingCount} pending requests
           </p>
         </div>
 
@@ -363,25 +513,117 @@ export default function OwnerDashboard() {
           ))}
         </div>
 
+        {tab !== "requests" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text3)" }}>Class:</span>
+            <Btn
+              variant={titleFilter === "all" ? "red" : "outline"}
+              onClick={() => setTitleFilter("all")}
+              style={{ padding: "6px 10px" }}
+            >
+              All
+            </Btn>
+            {slotTitleOptions.map((title) => (
+              <Btn
+                key={title}
+                variant={titleFilter === title ? "red" : "outline"}
+                onClick={() => setTitleFilter(title)}
+                style={{ padding: "6px 10px" }}
+              >
+                {title}
+              </Btn>
+            ))}
+          </div>
+        )}
+
+        {tab !== "requests" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text3)" }}>Meeting type:</span>
+            {meetingTypeOptions.map((opt) => (
+              <Btn
+                key={opt.key}
+                variant={meetingTypeFilter === opt.key ? "red" : "outline"}
+                onClick={() => setMeetingTypeFilter(opt.key)}
+                style={{ padding: "6px 10px" }}
+              >
+                {opt.label}
+              </Btn>
+            ))}
+          </div>
+        )}
+
         {/* Search */}
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder={tab === "slots" ? "Search by slot title or student name…" : "Search by student name or email…"}
+          placeholder={tab === "requests" ? "Search by student name or email…" : "Search by slot title or student name…"}
           style={{ marginBottom: 20, maxWidth: isMobile ? "100%" : 400 }}
         />
-
         {/* Slots tab */}
-        {tab === "slots" && (
+        {tab !== "requests" && (
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 260px", gap: 20, alignItems: "start" }}>
             <div>
-              {filteredSlots.length === 0 ? (
+              {meetingTypeFilter === "recurring" ? (
+                recurringGroupEntries.length === 0 ? (
+                  <Card style={{ textAlign: "center", padding: "40px 24px", color: "var(--text3)", fontSize: 13.5 }}>
+                    No recurring meetings found for the current filters.
+                  </Card>
+                ) : (
+                  recurringGroupEntries.map((group, i) => (
+                    <Card key={group.title} delay={i * 0.05} style={{ marginBottom: 12 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                        <div>
+                          <div style={{ fontSize: 14.5, fontWeight: 700, color: "var(--text)" }}>{group.title}</div>
+                          <div style={{ fontSize: 12.5, color: "var(--text3)" }}>{group.slots.length} recurring meetings</div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <Btn
+                            variant="outline"
+                            onClick={() =>
+                              setExpandedRecurringGroups((prev) => ({ ...prev, [group.title]: !prev[group.title] }))
+                            }
+                            style={{ padding: "6px 10px" }}
+                          >
+                            {expandedRecurringGroups[group.title] ? "Hide meetings" : "Show meetings"}
+                          </Btn>
+                          <Btn
+                            variant="outline"
+                            onClick={() => deleteRecurringGroup(group.slots, group.title)}
+                            style={{ padding: "6px 10px" }}
+                          >
+                            <Trash2 size={14} /> Delete recurring
+                          </Btn>
+                        </div>
+                      </div>
+                      {expandedRecurringGroups[group.title] && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          {group.slots.map((slot, idx) => (
+                            <SlotCard
+                              key={slot.id}
+                              slot={slot}
+                              delay={idx * 0.03}
+                              onToggle={() => toggleStatus(slot.id)}
+                              onDelete={() => setDeleteSlotId(slot.id)}
+                              confirmingDelete={deleteSlotId === slot.id}
+                              onConfirmDelete={() => deleteSlot(slot.id)}
+                              onCancelDelete={() => setDeleteSlotId(null)}
+                              onCopyLink={() => copyInviteLink(slot.invite_token)}
+                              copied={copiedToken === slot.invite_token}
+                              onFinalize={() => setFinalizeSlot(slot)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </Card>
+                  ))
+                )
+              ) : sortedFilteredSlots.length === 0 ? (
                 <Card style={{ textAlign: "center", padding: "40px 24px", color: "var(--text3)", fontSize: 13.5 }}>
                   {search.trim() ? `No slots matching "${search}".` : "No slots yet."}{" "}
                   {!search.trim() && <button onClick={() => setShowCreate(true)} style={{ background: "none", border: "none", color: "var(--red)", fontWeight: 600, cursor: "pointer", fontSize: 13.5, fontFamily: "inherit" }}>Create one →</button>}
                 </Card>
               ) : (
-                filteredSlots.map((slot, i) => (
+                sortedFilteredSlots.map((slot, i) => (
                   <SlotCard
                     key={slot.id}
                     slot={slot}
@@ -404,9 +646,9 @@ export default function OwnerDashboard() {
                   <SectionTitle>Summary</SectionTitle>
                   {[
                     { label: "Total slots", val: slots.length },
-                    { label: "Active", val: slots.filter(s => s.status === "active").length },
-                    { label: "Private", val: slots.filter(s => s.status === "private").length },
-                    { label: "Total bookings", val: slots.reduce((a, s) => a + s.bookings.length, 0) },
+                    { label: "Booked slots", val: slots.filter(s => getConfirmedBookingCount(s) > 0).length },
+                    { label: "Free slots", val: slots.filter(s => getConfirmedBookingCount(s) === 0).length },
+                    { label: "Total bookings", val: slots.reduce((a, s) => a + getConfirmedBookingCount(s), 0) },
                   ].map(row => (
                     <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
                       <span style={{ color: "var(--text2)" }}>{row.label}</span>

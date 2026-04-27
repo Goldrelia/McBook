@@ -74,7 +74,11 @@ export default function AppointmentCard({ appt, delay, onDelete, confirmingDelet
           {appt.owner_email?.split('@')[0].replace('.', ' ') || 'Owner'}
         </div>
 
-        {confirmingDelete ? (
+        {appt.isRequestOnly ? (
+          <div style={{ fontSize: 12.5, color: "var(--text3)", fontWeight: 500 }}>
+            Awaiting owner response
+          </div>
+        ) : confirmingDelete ? (
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: 12, color: "var(--text3)" }}>Remove this booking?</span>
             <Btn variant="red" onClick={onConfirmDelete} style={{ padding: "4px 10px", fontSize: 12 }}>Yes</Btn>

@@ -3,6 +3,7 @@
 // Wei-Sen Wang - 261116291
 
 const pool = require('../config/db');
+const crypto = require('crypto');
 
 /**
  * Get all bookings for the logged-in user
@@ -55,21 +56,44 @@ async function createBooking(req, res) {
 
     const slot = slots[0];
 
-    // Check if already booked
+    // Check if requester has a booking history for this slot
     const [existing] = await pool.execute(
-      'SELECT * FROM bookings WHERE slot_id = ? AND user_id = ?',
+      'SELECT * FROM bookings WHERE slot_id = ? AND user_id = ? ORDER BY booked_at DESC',
       [slot_id, user_id]
     );
 
-    if (existing.length > 0) {
+    const existingConfirmed = existing.find((b) => b.status === 'confirmed');
+    if (existingConfirmed) {
       return res.status(400).json({ error: 'You have already booked this slot' });
     }
 
-    // Create booking
-    const [result] = await pool.execute(
-      'INSERT INTO bookings (slot_id, user_id, status) VALUES (?, ?, "confirmed")',
-      [slot_id, user_id]
+    // Enforce one reservation per slot at a time
+    const [slotBookings] = await pool.execute(
+      'SELECT COUNT(*) as count FROM bookings WHERE slot_id = ? AND status = "confirmed"',
+      [slot_id]
     );
+
+    if (slotBookings[0].count > 0) {
+      return res.status(400).json({ error: 'This slot is already booked' });
+    }
+
+    let bookingId;
+    const reusableCancelled = existing.find((b) => b.status === 'cancelled');
+    if (reusableCancelled) {
+      // Re-use the previous booking row so users can re-book after cancelling.
+      bookingId = reusableCancelled.id;
+      await pool.execute(
+        'UPDATE bookings SET status = "confirmed", booked_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [bookingId]
+      );
+    } else {
+      // Create booking
+      bookingId = crypto.randomUUID();
+      await pool.execute(
+        'INSERT INTO bookings (id, slot_id, user_id, status) VALUES (?, ?, ?, "confirmed")',
+        [bookingId, slot_id, user_id]
+      );
+    }
 
     // Create notification for owner
     await pool.execute(
@@ -84,7 +108,7 @@ async function createBooking(req, res) {
        FROM bookings b
        JOIN slots s ON b.slot_id = s.id
        WHERE b.id = ?`,
-      [result.insertId]
+      [bookingId]
     );
 
     res.status(201).json(newBooking[0]);
@@ -111,7 +135,7 @@ async function cancelBooking(req, res) {
   try {
     // Verify booking exists and belongs to user
     const [bookings] = await pool.execute(
-      `SELECT b.*, s.title, s.owner_id
+      `SELECT b.*, s.title, s.owner_id, s.type
        FROM bookings b
        JOIN slots s ON b.slot_id = s.id
        WHERE b.id = ? AND b.user_id = ?`,
@@ -129,6 +153,18 @@ async function cancelBooking(req, res) {
       'UPDATE bookings SET status = "cancelled" WHERE id = ?',
       [id]
     );
+
+    // For Type 1 request-generated appointments, remove the slot once cancelled
+    // so it no longer appears on the owner's "My Slots" list.
+    if (booking.type === 'request') {
+      const [confirmed] = await pool.execute(
+        'SELECT COUNT(*) as count FROM bookings WHERE slot_id = ? AND status = "confirmed"',
+        [booking.slot_id]
+      );
+      if (confirmed[0].count === 0) {
+        await pool.execute('DELETE FROM slots WHERE id = ?', [booking.slot_id]);
+      }
+    }
 
     // Create notification for owner
     await pool.execute(
