@@ -10,10 +10,13 @@ import { Plus, Trash2 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Btn from "../components/Btn";
 import Card from "../components/Card";
+import CalendarExportBlock from "../components/CalendarExportBlock";
+import { buildOwnerSlotsIcs, downloadIcsFile } from "../utils/calendarExport";
 import SearchInput from "../components/SearchInput";
 import SlotCard from "../features/owner/SlotCard";
 import RequestCard from "../features/owner/RequestCard";
 import { CreateSlotModal, FinalizeGroupModal } from "../features/owner/CreateSlotModal";
+import EditGroupPollModal from "../features/owner/EditGroupPollModal";
 import { MOCK_SLOTS, MOCK_REQUESTS } from "../features/owner/mockData";
 import useWindowWidth from "../hooks/useWindowWidth";
 import { createSlot, getOwnerSlots, getOwnerRequests, finalizeGroupMeeting, deleteSlotSeries as apiDeleteSlotSeries } from "../services/api";
@@ -50,6 +53,11 @@ export default function OwnerDashboard() {
   const [titleFilter, setTitleFilter] = useState("all");
   const [meetingTypeFilter, setMeetingTypeFilter] = useState("all");
   const [expandedRecurringGroups, setExpandedRecurringGroups] = useState({});
+  const [createdGroupLink, setCreatedGroupLink] = useState(null);
+  const [editGroupPollSlot, setEditGroupPollSlot] = useState(null);
+  const [exportBookedSlotsOnly, setExportBookedSlotsOnly] = useState(
+    () => localStorage.getItem("mcbook-owner-export-booked-only") === "1",
+  );
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -69,23 +77,42 @@ export default function OwnerDashboard() {
         const confirmedBookings = (slot.bookings || []).filter(
           (b) => (b.status || "confirmed") === "confirmed"
         );
+        const WEEK_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
         const groupSlots = (slot.group_slot_options || []).map(opt => {
+          const anchor = "2000-01-01";
+          const wd = opt.weekday != null && opt.weekday !== "" ? Number(opt.weekday) : NaN;
+          const start = new Date(`${anchor}T${String(opt.start_time).slice(0, 8)}`);
+          const end = new Date(`${anchor}T${String(opt.end_time).slice(0, 8)}`);
+          const startLabel = start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+          const endLabel = end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+          const time = `${startLabel} – ${endLabel}`;
+          const noConcreteDate =
+            opt.option_date == null || opt.option_date === "" || String(opt.option_date) === "null";
+          if (noConcreteDate && !Number.isNaN(wd) && wd >= 0 && wd <= 6) {
+            return {
+              id: opt.id,
+              date: WEEK_NAMES[wd],
+              time,
+              votes: opt.vote_count || 0,
+            };
+          }
           const dateOnly = String(opt.option_date).split("T")[0];
-          const start = new Date(`${dateOnly}T${opt.start_time}`);
-          const end = new Date(`${dateOnly}T${opt.end_time}`);
-          const date = start.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-          const startLabel = start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-          const endLabel = end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+          const startD = new Date(`${dateOnly}T${opt.start_time}`);
+          const endD = new Date(`${dateOnly}T${opt.end_time}`);
+          const date = startD.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+          const sL = startD.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+          const eL = endD.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
           return {
             id: opt.id,
             date,
-            time: `${startLabel} – ${endLabel}`,
-            votes: opt.vote_count || 0
+            time: `${sL} – ${eL}`,
+            votes: opt.vote_count || 0,
           };
         });
 
         return {
           ...slot,
+          finalized: Boolean(slot.group_finalized),
           date: formatDate(slot.start_time),
           time: formatTime(slot.start_time, slot.end_time),
           location: slot.location || 'TBD',
@@ -96,6 +123,7 @@ export default function OwnerDashboard() {
         };
       });
       setSlots(transformedSlots);
+      return transformedSlots;
     } catch (err) {
       console.error('Failed to load slots:', err);
       if (String(err.message).includes("Owner access required")) {
@@ -103,6 +131,7 @@ export default function OwnerDashboard() {
       } else {
         alert('Failed to load slots. Please try again.');
       }
+      return null;
     }
   }
 
@@ -143,6 +172,24 @@ export default function OwnerDashboard() {
         alert('Owner access required. Please log in with an @mcgill.ca account.');
       }
     }
+  }
+
+  function handleOwnerExportCalendar() {
+    const ics = buildOwnerSlotsIcs(slots, { bookedOnly: exportBookedSlotsOnly });
+    if (!ics) {
+      alert(
+        exportBookedSlotsOnly
+          ? "No booked slots with set times to export."
+          : "No slots with set times to export. Finalize group polls or create timed slots first.",
+      );
+      return;
+    }
+    downloadIcsFile("mcbook-my-slots.ics", ics);
+  }
+
+  function handleExportBookedOnlyChange(checked) {
+    setExportBookedSlotsOnly(checked);
+    localStorage.setItem("mcbook-owner-export-booked-only", checked ? "1" : "0");
   }
 
   function toggleStatus(id) {
@@ -315,7 +362,23 @@ export default function OwnerDashboard() {
 
   // Transform slot data from modal format to API format
   function transformSlotForAPI(slot) {
-    // Type 2 (Group Meeting) - pass through group_slot_options
+    // Type 2 — weekly patterns over a date range (server expands to concrete vote options)
+    if (slot.type === "group" && slot.group_poll_weekly_slots?.length) {
+      return {
+        title: slot.title,
+        type: slot.type,
+        status: slot.status,
+        location: slot.location,
+        is_recurring: false,
+        recurrence_weeks: null,
+        voter_emails: slot.voter_emails,
+        group_season_start: slot.group_season_start,
+        group_season_end: slot.group_season_end,
+        group_poll_weekly_slots: slot.group_poll_weekly_slots,
+      };
+    }
+
+    // Type 2 legacy — explicit calendar options
     if (slot.type === "group" && slot.group_slot_options) {
       return {
         title: slot.title,
@@ -326,8 +389,8 @@ export default function OwnerDashboard() {
         location: slot.location,
         is_recurring: false,
         recurrence_weeks: null,
-        invite_token: slot.invite_token,
-        group_slot_options: slot.group_slot_options
+        group_slot_options: slot.group_slot_options,
+        voter_emails: slot.voter_emails,
       };
     }
 
@@ -362,10 +425,15 @@ export default function OwnerDashboard() {
   async function addSlot(slot) {
     try {
       const transformedSlot = transformSlotForAPI(slot);
-      await createSlot(transformedSlot);
+      const created = await createSlot(transformedSlot);
       await loadSlots();
       setShowCreate(false);
-
+      if (created && created.type === "group" && created.invite_token) {
+        setCreatedGroupLink({
+          token: created.invite_token,
+          title: created.title,
+        });
+      }
     } catch (err) {
       console.error("Error creating slot:", err);
       alert("Failed to create slot: " + err.message);
@@ -373,21 +441,22 @@ export default function OwnerDashboard() {
   }
 
   async function finalizeGroupSlot(slotId, selectedGroupSlot, isRecurring, recurrenceWeeks) {
+    const slot = finalizeSlot;
     try {
-      await finalizeGroupMeeting(slotId, selectedGroupSlot.id, isRecurring, recurrenceWeeks);
-
-      setSlots(prev => prev.map(s =>
-        s.id === slotId ? {
-          ...s,
-          finalized: true,
-          date: selectedGroupSlot.date,
-          time: selectedGroupSlot.time,
-          is_recurring: isRecurring,
-          recurrence_weeks: recurrenceWeeks
-        } : s
-      ));
+      const result = await finalizeGroupMeeting(slotId, selectedGroupSlot.id, isRecurring, recurrenceWeeks);
 
       setFinalizeSlot(null);
+      await loadSlots();
+      if (result?.notify_emails?.length) {
+        const to = result.notify_emails.join(",");
+        const loc = slot?.location || "TBD";
+        const timeLine = result.final_time_label || `${selectedGroupSlot.date} · ${selectedGroupSlot.time}`;
+        const sub = encodeURIComponent(`Confirmed: ${slot?.title || "Group meeting"}`);
+        const body = encodeURIComponent(
+          `Hi,\n\nThe group meeting time is confirmed.\n\nWhen: ${timeLine}\nWhere: ${loc}\n\nSee you there.\n`
+        );
+        window.open(`mailto:${to}?subject=${sub}&body=${body}`);
+      }
     } catch (err) {
       console.error('Error finalizing group meeting:', err);
       alert('Failed to finalize meeting: ' + err.message);
@@ -494,6 +563,47 @@ export default function OwnerDashboard() {
           </p>
         </div>
 
+        {createdGroupLink && (
+          <div
+            style={{
+              marginBottom: 20,
+              padding: "14px 16px",
+              background: "rgba(16,185,129,0.08)",
+              border: "1px solid rgba(16,185,129,0.3)",
+              borderRadius: 10,
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: 12,
+              justifyContent: "space-between",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>
+                Group meeting created: {createdGroupLink.title}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text3)", fontFamily: "ui-monospace, monospace", wordBreak: "break-all" }}>
+                {window.location.origin}/vote/{createdGroupLink.token}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+              <Btn
+                variant="red"
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    `${window.location.origin}/vote/${createdGroupLink.token}`,
+                  );
+                }}
+              >
+                Copy invite link
+              </Btn>
+              <Btn variant="outline" onClick={() => setCreatedGroupLink(null)}>
+                Dismiss
+              </Btn>
+            </div>
+          </div>
+        )}
+
         {/* Tabs */}
         <div style={{ display: "flex", gap: 2, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 9, padding: 3, marginBottom: 20, width: isMobile ? "100%" : "fit-content", overflowX: "auto", boxShadow: "var(--shadow-sm)" }}>
           {TABS.map(t => (
@@ -559,6 +669,23 @@ export default function OwnerDashboard() {
           placeholder={tab === "requests" ? "Search by student name or email…" : "Search by slot title or student name…"}
           style={{ marginBottom: 20, maxWidth: isMobile ? "100%" : 400 }}
         />
+        {isMobile && tab !== "requests" && (
+          <Card style={{ marginBottom: 20 }}>
+            <SectionTitle>Quick actions</SectionTitle>
+            <Btn variant="red" onClick={() => setShowCreate(true)} style={{ width: "100%", justifyContent: "center", marginBottom: 8 }}>
+              <Plus size={14} /> New slot
+            </Btn>
+            <CalendarExportBlock
+              onExport={handleOwnerExportCalendar}
+              showBookedOnlyOption
+              bookedOnly={exportBookedSlotsOnly}
+              onBookedOnlyChange={handleExportBookedOnlyChange}
+            />
+            <Btn variant="outline" onClick={() => setTab("requests")} style={{ width: "100%", justifyContent: "center", marginTop: 10 }}>
+              View requests {pendingCount > 0 && `(${pendingCount})`}
+            </Btn>
+          </Card>
+        )}
         {/* Slots tab */}
         {tab !== "requests" && (
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 260px", gap: 20, alignItems: "start" }}>
@@ -610,6 +737,7 @@ export default function OwnerDashboard() {
                               onCopyLink={() => copyInviteLink(slot.invite_token)}
                               copied={copiedToken === slot.invite_token}
                               onFinalize={() => setFinalizeSlot(slot)}
+                              onEditPollOptions={() => setEditGroupPollSlot(slot)}
                             />
                           ))}
                         </div>
@@ -636,6 +764,7 @@ export default function OwnerDashboard() {
                     onCopyLink={() => copyInviteLink(slot.invite_token)}
                     copied={copiedToken === slot.invite_token}
                     onFinalize={() => setFinalizeSlot(slot)}
+                    onEditPollOptions={() => setEditGroupPollSlot(slot)}
                   />
                 ))
               )}
@@ -661,7 +790,13 @@ export default function OwnerDashboard() {
                   <Btn variant="red" onClick={() => setShowCreate(true)} style={{ width: "100%", justifyContent: "center", marginBottom: 8 }}>
                     <Plus size={14} /> New slot
                   </Btn>
-                  <Btn variant="outline" onClick={() => setTab("requests")} style={{ width: "100%", justifyContent: "center" }}>
+                  <CalendarExportBlock
+                    onExport={handleOwnerExportCalendar}
+                    showBookedOnlyOption
+                    bookedOnly={exportBookedSlotsOnly}
+                    onBookedOnlyChange={handleExportBookedOnlyChange}
+                  />
+                  <Btn variant="outline" onClick={() => setTab("requests")} style={{ width: "100%", justifyContent: "center", marginTop: 10 }}>
                     View requests {pendingCount > 0 && `(${pendingCount})`}
                   </Btn>
                 </Card>
@@ -720,6 +855,20 @@ export default function OwnerDashboard() {
           slot={finalizeSlot}
           onClose={() => setFinalizeSlot(null)}
           onFinalize={(selected, isRecurring, weeks) => finalizeGroupSlot(finalizeSlot.id, selected, isRecurring, weeks)}
+        />
+      )}
+
+      {editGroupPollSlot && (
+        <EditGroupPollModal
+          slot={editGroupPollSlot}
+          onClose={() => setEditGroupPollSlot(null)}
+          onSaved={async () => {
+            const list = await loadSlots();
+            setEditGroupPollSlot((prev) => {
+              if (!prev || !list) return null;
+              return list.find((s) => s.id === prev.id) ?? null;
+            });
+          }}
         />
       )}
     </div>

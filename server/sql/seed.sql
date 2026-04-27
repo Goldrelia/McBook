@@ -12,6 +12,7 @@ TRUNCATE TABLE notifications;
 TRUNCATE TABLE availability_responses;
 TRUNCATE TABLE meeting_requests;
 TRUNCATE TABLE bookings;
+TRUNCATE TABLE group_meeting_invitees;
 TRUNCATE TABLE group_slot_options;
 TRUNCATE TABLE slots;
 TRUNCATE TABLE users;
@@ -36,40 +37,45 @@ INSERT INTO users (id, email, password_hash, role) VALUES
 (8, 'emma.wilson@mail.mcgill.ca', '$2b$10$X928AMuF.aMrHvC/eflfWueOUu01GkzVToVf4R5XIWIMm.zruFYSu', 'student');
 
 -- ==================== SLOTS ====================
-INSERT INTO slots (id, owner_id, title, type, status, start_time, end_time, is_recurring, recurrence_weeks, invite_token, location) VALUES
+INSERT INTO slots (id, owner_id, title, type, status, start_time, end_time, is_recurring, recurrence_weeks, invite_token, group_finalized, group_season_start, group_season_end, location) VALUES
 -- Office Hours (Type 3)
-('550e8400-e29b-41d4-a716-446655440001', 1, 'COMP 307 Office Hours', 'office_hours', 'active', '2024-12-20 14:00:00', '2024-12-20 15:00:00', 1, 12, NULL, 'Trottier 3090'),
-('550e8400-e29b-41d4-a716-446655440002', 1, 'COMP 307 Extra Help Session', 'office_hours', 'active', '2024-12-22 10:00:00', '2024-12-22 11:30:00', 0, NULL, NULL, 'McConnell 320'),
-('550e8400-e29b-41d4-a716-446655440003', 2, 'Tutorial Session - Week 12', 'office_hours', 'active', '2024-12-21 15:00:00', '2024-12-21 16:00:00', 0, NULL, NULL, 'Trottier 2120'),
-('550e8400-e29b-41d4-a716-446655440004', 3, 'COMP 250 Drop-in Hours', 'office_hours', 'active', '2024-12-23 13:00:00', '2024-12-23 14:00:00', 1, 8, NULL, 'Burnside 1B24'),
+('550e8400-e29b-41d4-a716-446655440001', 1, 'COMP 307 Office Hours', 'office_hours', 'active', '2024-12-20 14:00:00', '2024-12-20 15:00:00', 1, 12, NULL, 0, NULL, NULL, 'Trottier 3090'),
+('550e8400-e29b-41d4-a716-446655440002', 1, 'COMP 307 Extra Help Session', 'office_hours', 'active', '2024-12-22 10:00:00', '2024-12-22 11:30:00', 0, NULL, NULL, 0, NULL, NULL, 'McConnell 320'),
+('550e8400-e29b-41d4-a716-446655440003', 2, 'Tutorial Session - Week 12', 'office_hours', 'active', '2024-12-21 15:00:00', '2024-12-21 16:00:00', 0, NULL, NULL, 0, NULL, NULL, 'Trottier 2120'),
+('550e8400-e29b-41d4-a716-446655440004', 3, 'COMP 250 Drop-in Hours', 'office_hours', 'active', '2024-12-23 13:00:00', '2024-12-23 14:00:00', 1, 8, NULL, 0, NULL, NULL, 'Burnside 1B24'),
 
 -- Group Meetings (Type 2) - With voting options
-('550e8400-e29b-41d4-a716-446655440005', 1, 'Final Project Team Meeting', 'group', 'active', '2024-12-28 16:00:00', '2024-12-28 17:00:00', 0, NULL, 'invite-token-abc123', 'Online (Zoom)'),
-('550e8400-e29b-41d4-a716-446655440006', 2, 'Study Group - Midterm Prep', 'group', 'active', '2024-12-27 18:00:00', '2024-12-27 20:00:00', 0, NULL, 'invite-token-def456', 'McLennan Library - Room 303'),
-('550e8400-e29b-41d4-a716-446655440007', 3, 'Research Group Sync', 'group', 'private', '2024-12-30 14:00:00', '2024-12-30 15:00:00', 0, NULL, 'invite-token-ghi789', 'ENGMC 304'),
+('550e8400-e29b-41d4-a716-446655440005', 1, 'Final Project Team Meeting', 'group', 'active', '2024-12-28 16:00:00', '2024-12-28 17:00:00', 0, NULL, 'invite-token-abc123', 1, NULL, NULL, 'Online (Zoom)'),
+('550e8400-e29b-41d4-a716-446655440006', 2, 'Study Group - Midterm Prep', 'group', 'active', '2024-12-27 18:00:00', '2024-12-27 20:00:00', 0, NULL, 'invite-token-def456', 1, NULL, NULL, 'McLennan Library - Room 303'),
+('550e8400-e29b-41d4-a716-446655440007', 3, 'Research Group Sync', 'group', 'private', '2024-12-30 14:00:00', '2024-12-30 15:00:00', 0, NULL, 'invite-token-ghi789', 0, NULL, NULL, 'ENGMC 304'),
 
 -- Private/Draft slots
-('550e8400-e29b-41d4-a716-446655440008', 1, 'Thesis Defense Practice', 'office_hours', 'private', '2024-12-29 10:00:00', '2024-12-29 11:00:00', 0, NULL, NULL, 'McConnell 437');
+('550e8400-e29b-41d4-a716-446655440008', 1, 'Thesis Defense Practice', 'office_hours', 'private', '2024-12-29 10:00:00', '2024-12-29 11:00:00', 0, NULL, NULL, 0, NULL, NULL, 'McConnell 437');
 
 -- ==================== GROUP SLOT OPTIONS ====================
 -- Options for 'Final Project Team Meeting' (slot 005)
-INSERT INTO group_slot_options (id, slot_id, option_date, start_time, end_time, vote_count) VALUES
-('opt-8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440005', '2024-12-28', '16:00:00', '17:00:00', 3),
-('opt-8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440005', '2024-12-28', '18:00:00', '19:00:00', 2),
-('opt-8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440005', '2024-12-29', '14:00:00', '15:00:00', 1);
+INSERT INTO group_slot_options (id, slot_id, option_date, start_time, end_time, weekday, vote_count) VALUES
+('opt-8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440005', '2024-12-28', '16:00:00', '17:00:00', NULL, 3),
+('opt-8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440005', '2024-12-28', '18:00:00', '19:00:00', NULL, 2),
+('opt-8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440005', '2024-12-29', '14:00:00', '15:00:00', NULL, 1);
 
 -- Options for 'Study Group - Midterm Prep' (slot 006)
-INSERT INTO group_slot_options (id, slot_id, option_date, start_time, end_time, vote_count) VALUES
-('opt-8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440006', '2024-12-27', '18:00:00', '20:00:00', 4),
-('opt-8400-e29b-41d4-a716-446655440005', '550e8400-e29b-41d4-a716-446655440006', '2024-12-27', '19:00:00', '21:00:00', 2),
-('opt-8400-e29b-41d4-a716-446655440006', '550e8400-e29b-41d4-a716-446655440006', '2024-12-28', '14:00:00', '16:00:00', 3),
-('opt-8400-e29b-41d4-a716-446655440007', '550e8400-e29b-41d4-a716-446655440006', '2024-12-27', '20:00:00', '22:00:00', 1);
+INSERT INTO group_slot_options (id, slot_id, option_date, start_time, end_time, weekday, vote_count) VALUES
+('opt-8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440006', '2024-12-27', '18:00:00', '20:00:00', NULL, 4),
+('opt-8400-e29b-41d4-a716-446655440005', '550e8400-e29b-41d4-a716-446655440006', '2024-12-27', '19:00:00', '21:00:00', NULL, 2),
+('opt-8400-e29b-41d4-a716-446655440006', '550e8400-e29b-41d4-a716-446655440006', '2024-12-28', '14:00:00', '16:00:00', NULL, 3),
+('opt-8400-e29b-41d4-a716-446655440007', '550e8400-e29b-41d4-a716-446655440006', '2024-12-27', '20:00:00', '22:00:00', NULL, 1);
 
 -- Options for 'Research Group Sync' (slot 007 - private, no votes yet)
-INSERT INTO group_slot_options (id, slot_id, option_date, start_time, end_time, vote_count) VALUES
-('opt-8400-e29b-41d4-a716-446655440008', '550e8400-e29b-41d4-a716-446655440007', '2024-12-30', '14:00:00', '15:00:00', 0),
-('opt-8400-e29b-41d4-a716-446655440009', '550e8400-e29b-41d4-a716-446655440007', '2024-12-30', '16:00:00', '17:00:00', 0),
-('opt-8400-e29b-41d4-a716-446655440010', '550e8400-e29b-41d4-a716-446655440007', '2024-12-31', '10:00:00', '11:00:00', 0);
+INSERT INTO group_slot_options (id, slot_id, option_date, start_time, end_time, weekday, vote_count) VALUES
+('opt-8400-e29b-41d4-a716-446655440008', '550e8400-e29b-41d4-a716-446655440007', '2024-12-30', '14:00:00', '15:00:00', NULL, 0),
+('opt-8400-e29b-41d4-a716-446655440009', '550e8400-e29b-41d4-a716-446655440007', '2024-12-30', '16:00:00', '17:00:00', NULL, 0),
+('opt-8400-e29b-41d4-a716-446655440010', '550e8400-e29b-41d4-a716-446655440007', '2024-12-31', '10:00:00', '11:00:00', NULL, 0);
+
+-- Invited voters for Research Group Sync (login required; public browse excludes group slots)
+INSERT INTO group_meeting_invitees (id, slot_id, email) VALUES
+('inv-8400-e29b-41d4-a716-00001', '550e8400-e29b-41d4-a716-446655440007', 'alice.wang@mail.mcgill.ca'),
+('inv-8400-e29b-41d4-a716-00002', '550e8400-e29b-41d4-a716-446655440007', 'bob.martin@mail.mcgill.ca');
 
 -- ==================== BOOKINGS ====================
 INSERT INTO bookings (id, slot_id, user_id, status) VALUES

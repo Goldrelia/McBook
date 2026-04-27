@@ -26,6 +26,321 @@ function convertTo24Hour(time12h) {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
 }
 
+function normalizeEmail(e) {
+  return String(e || "")
+    .trim()
+    .toLowerCase();
+}
+
+const DAY_NAME_TO_INDEX = {
+  Sunday: 0,
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
+};
+
+/** YYYY-MM-DD at local midnight; returns null if invalid */
+function parseYmdLocal(ymd) {
+  const m = String(ymd || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+function formatYmdLocal(d) {
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${mo}-${day}`;
+}
+
+/** Next calendar date (YYYY-MM-DD) matching weekday 0–6, preferring an optional season window. */
+function firstConcreteDateForPollOption(weekdayIdx, seasonStartYmd, seasonEndYmd) {
+  if (weekdayIdx == null || Number.isNaN(Number(weekdayIdx))) return null;
+  const wd = Number(weekdayIdx);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let from = new Date(today.getTime());
+  const seasonStart = seasonStartYmd ? parseYmdLocal(seasonStartYmd) : null;
+  const seasonEnd = seasonEndYmd ? parseYmdLocal(seasonEndYmd) : null;
+  if (seasonStart && seasonStart > from) from = new Date(seasonStart.getTime());
+  const defaultUntil = new Date(today);
+  defaultUntil.setDate(defaultUntil.getDate() + 370);
+  const until = seasonEnd || defaultUntil;
+  if (seasonEnd && seasonEnd < from) {
+    for (let i = 0; i < 370; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      if (d.getDay() === wd) return formatYmdLocal(d);
+    }
+    return formatYmdLocal(today);
+  }
+  for (let cur = new Date(from.getTime()); cur.getTime() <= until.getTime(); cur.setDate(cur.getDate() + 1)) {
+    if (cur.getDay() === wd) return formatYmdLocal(cur);
+  }
+  for (let i = 0; i < 370; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    if (d.getDay() === wd) return formatYmdLocal(d);
+  }
+  return formatYmdLocal(today);
+}
+
+/** Sort: weekday-only template rows first, then legacy dated options. */
+const ORDER_GROUP_OPTIONS = (alias = "") => {
+  const p = alias ? `${alias}.` : "";
+  return `(${p}option_date IS NOT NULL), COALESCE(${p}option_date, '1970-01-01'), ${p}weekday, ${p}start_time`;
+};
+
+function isGroupFinalized(row) {
+  return Number(row?.group_finalized) === 1;
+}
+
+/** MySQL DATE (often a JS Date) or string -> YYYY-MM-DD in local calendar */
+function formatSqlDatePart(val) {
+  if (val == null) return "";
+  if (val instanceof Date && !Number.isNaN(val.getTime())) {
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, "0");
+    const d = String(val.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  const s = String(val);
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (m) return m[1];
+  return s.slice(0, 10);
+}
+
+/** MySQL TIME or string -> HH:MM:SS */
+function formatSqlTimePart(val) {
+  if (val == null) return "00:00:00";
+  const s = String(val);
+  const m = s.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (!m) return "00:00:00";
+  const h = String(Number(m[1])).padStart(2, "0");
+  const min = String(m[2]).padStart(2, "0");
+  const sec = String(m[3] != null ? Number(m[3]) : 0).padStart(2, "0");
+  return `${h}:${min}:${sec}`;
+}
+
+/** Parse MySQL DATETIME string as local calendar (avoid UTC shift). */
+function parseMysqlDatetimeLocal(dt) {
+  const s = String(dt ?? "").trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2}):(\d{2})/);
+  if (!m) return new Date(NaN);
+  return new Date(
+    Number(m[1]),
+    Number(m[2]) - 1,
+    Number(m[3]),
+    Number(m[4]),
+    Number(m[5]),
+    Number(m[6]),
+    0,
+  );
+}
+
+function formatMysqlDatetimeLocal(d) {
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return "1970-01-01 00:00:00";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+async function recalcGroupOptionVoteCounts(slotId) {
+  const [options] = await pool.execute(
+    "SELECT id FROM group_slot_options WHERE slot_id = ?",
+    [slotId],
+  );
+  for (const option of options) {
+    const [counts] = await pool.execute(
+      "SELECT COUNT(*) as count FROM availability_responses WHERE group_slot_option_id = ?",
+      [option.id],
+    );
+    await pool.execute(
+      "UPDATE group_slot_options SET vote_count = ? WHERE id = ?",
+      [Number(counts[0].count), option.id],
+    );
+  }
+}
+
+async function syncGroupSlotPlaceholderTimes(slotId) {
+  const [options] = await pool.execute(
+    `SELECT o.option_date, o.weekday, o.start_time, o.end_time,
+            s.group_season_start, s.group_season_end
+     FROM group_slot_options o
+     JOIN slots s ON s.id = o.slot_id
+     WHERE o.slot_id = ?
+     ORDER BY ${ORDER_GROUP_OPTIONS("o")}
+     LIMIT 1`,
+    [slotId],
+  );
+  if (options.length === 0) return;
+  const o = options[0];
+  let d = formatSqlDatePart(o.option_date);
+  if (!d && o.weekday != null && o.weekday !== "") {
+    d = firstConcreteDateForPollOption(
+      Number(o.weekday),
+      o.group_season_start ? formatSqlDatePart(o.group_season_start) : null,
+      o.group_season_end ? formatSqlDatePart(o.group_season_end) : null,
+    );
+  }
+  if (!d) return;
+  const start = `${d} ${formatSqlTimePart(o.start_time)}`;
+  const end = `${d} ${formatSqlTimePart(o.end_time)}`;
+  await pool.execute(
+    "UPDATE slots SET start_time = ?, end_time = ? WHERE id = ?",
+    [start, end, slotId],
+  );
+}
+
+/**
+ * Add voting time options to a group meeting (before finalize)
+ * POST /api/slots/:id/group-options
+ * Body: { group_slot_options: [{ date, start_time, end_time }] } — legacy calendar rows
+ *    or { group_poll_weekly_slots: [{ day, time_start, time_end }] } — one row per weekday+time choice
+ */
+async function addGroupSlotOptions(req, res) {
+  const { id } = req.params;
+  const { group_slot_options, group_poll_weekly_slots } = req.body;
+  const owner_id = req.user.userId;
+
+  let rowsToAdd = [];
+  if (Array.isArray(group_poll_weekly_slots) && group_poll_weekly_slots.length > 0) {
+    for (const ws of group_poll_weekly_slots) {
+      const target = DAY_NAME_TO_INDEX[String(ws.day || "").trim()];
+      if (target === undefined || !ws.time_start || !ws.time_end) {
+        return res.status(400).json({
+          error: "Each weekly option needs day (e.g. Monday), time_start, and time_end.",
+        });
+      }
+      rowsToAdd.push({
+        weekly: true,
+        weekday: target,
+        start_time: convertTo24Hour(ws.time_start),
+        end_time: convertTo24Hour(ws.time_end),
+      });
+    }
+  } else if (Array.isArray(group_slot_options) && group_slot_options.length > 0) {
+    for (const option of group_slot_options) {
+      if (!option.date || !option.start_time || !option.end_time) {
+        return res.status(400).json({ error: "Each option needs date, start_time, end_time" });
+      }
+      rowsToAdd.push({
+        weekly: false,
+        date: option.date,
+        start_time: convertTo24Hour(option.start_time),
+        end_time: convertTo24Hour(option.end_time),
+      });
+    }
+  } else {
+    return res.status(400).json({
+      error:
+        "Send group_slot_options (calendar rows) or group_poll_weekly_slots (weekday + time rows).",
+    });
+  }
+
+  try {
+    const [slots] = await pool.execute(
+      "SELECT * FROM slots WHERE id = ? AND owner_id = ?",
+      [id, owner_id],
+    );
+    if (slots.length === 0) {
+      return res.status(404).json({ error: "Slot not found" });
+    }
+    const slot = slots[0];
+    if (slot.type !== "group") {
+      return res.status(400).json({ error: "Not a group meeting slot" });
+    }
+    if (isGroupFinalized(slot)) {
+      return res.status(400).json({ error: "Cannot edit options after finalizing" });
+    }
+
+    for (const option of rowsToAdd) {
+      const optionId = crypto.randomUUID();
+      if (option.weekly) {
+        await pool.execute(
+          `INSERT INTO group_slot_options (id, slot_id, option_date, start_time, end_time, weekday)
+           VALUES (?, ?, NULL, ?, ?, ?)`,
+          [optionId, id, option.start_time, option.end_time, option.weekday],
+        );
+      } else {
+        await pool.execute(
+          `INSERT INTO group_slot_options (id, slot_id, option_date, start_time, end_time, weekday)
+           VALUES (?, ?, ?, ?, ?, NULL)`,
+          [optionId, id, option.date, option.start_time, option.end_time],
+        );
+      }
+    }
+
+    await recalcGroupOptionVoteCounts(id);
+    await syncGroupSlotPlaceholderTimes(id);
+
+    const [rows] = await pool.execute(
+      `SELECT id, option_date, weekday, start_time, end_time, vote_count
+       FROM group_slot_options WHERE slot_id = ? ORDER BY ${ORDER_GROUP_OPTIONS()}`,
+      [id],
+    );
+    res.status(201).json({ options: rows });
+  } catch (err) {
+    console.error("Error adding group options:", err);
+    res.status(500).json({ error: "Failed to add time options" });
+  }
+}
+
+/**
+ * Remove a voting time option (before finalize)
+ * DELETE /api/slots/:id/group-options/:optionId
+ */
+async function deleteGroupSlotOption(req, res) {
+  const { id, optionId } = req.params;
+  const owner_id = req.user.userId;
+
+  try {
+    const [slots] = await pool.execute(
+      "SELECT * FROM slots WHERE id = ? AND owner_id = ?",
+      [id, owner_id],
+    );
+    if (slots.length === 0) {
+      return res.status(404).json({ error: "Slot not found" });
+    }
+    const slot = slots[0];
+    if (slot.type !== "group") {
+      return res.status(400).json({ error: "Not a group meeting slot" });
+    }
+    if (isGroupFinalized(slot)) {
+      return res.status(400).json({ error: "Cannot edit options after finalizing" });
+    }
+
+    const [countRows] = await pool.execute(
+      "SELECT COUNT(*) as c FROM group_slot_options WHERE slot_id = ?",
+      [id],
+    );
+    if (Number(countRows[0].c) <= 1) {
+      return res.status(400).json({
+        error: "Keep at least one time option. Delete the whole meeting if needed.",
+      });
+    }
+
+    const [opt] = await pool.execute(
+      "SELECT id FROM group_slot_options WHERE id = ? AND slot_id = ?",
+      [optionId, id],
+    );
+    if (opt.length === 0) {
+      return res.status(404).json({ error: "Option not found" });
+    }
+
+    await pool.execute("DELETE FROM group_slot_options WHERE id = ?", [optionId]);
+    await recalcGroupOptionVoteCounts(id);
+    await syncGroupSlotPlaceholderTimes(id);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error deleting group option:", err);
+    res.status(500).json({ error: "Failed to remove time option" });
+  }
+}
+
 /**
  * Create a new slot
  * POST /api/slots
@@ -42,6 +357,10 @@ async function createSlot(req, res) {
     location,
     group_slot_options,
     weekly_slots,
+    voter_emails,
+    group_poll_weekly_slots,
+    group_season_start,
+    group_season_end,
   } = req.body;
   const owner_id = req.user.userId;
 
@@ -53,7 +372,17 @@ async function createSlot(req, res) {
     is_recurring &&
     recurrence_weeks > 0;
 
-  if (!type || ((!start_time || !end_time) && !hasOfficeHoursBatch)) {
+  const hasGroupPollWeeklyBatch =
+    type === "group" &&
+    Array.isArray(group_poll_weekly_slots) &&
+    group_poll_weekly_slots.length > 0;
+
+  if (
+    !type ||
+    ((!start_time || !end_time) &&
+      !hasOfficeHoursBatch &&
+      !(type === "group" && (hasGroupPollWeeklyBatch || (Array.isArray(group_slot_options) && group_slot_options.length > 0))))
+  ) {
     return res
       .status(400)
       .json({ error: "Missing required fields: type, start_time, end_time" });
@@ -63,6 +392,21 @@ async function createSlot(req, res) {
     return res.status(400).json({
       error: "Invalid type. Must be: request, group, or office_hours",
     });
+  }
+
+  if (type === "group") {
+    if (!Array.isArray(voter_emails) || voter_emails.length === 0) {
+      return res.status(400).json({
+        error:
+          "Add at least one student email (who is allowed to vote). Invited students will see the poll in their dashboard.",
+      });
+    }
+    const invited = [
+      ...new Set(voter_emails.map((e) => normalizeEmail(e)).filter(Boolean)),
+    ];
+    if (invited.length === 0) {
+      return res.status(400).json({ error: "Add at least one valid student email." });
+    }
   }
 
   try {
@@ -117,8 +461,8 @@ async function createSlot(req, res) {
           createdIds.push(slotId);
 
           await pool.execute(
-            `INSERT INTO slots (id, owner_id, title, type, status, start_time, end_time, is_recurring, recurrence_weeks, invite_token, location)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO slots (id, owner_id, title, type, status, start_time, end_time, is_recurring, recurrence_weeks, invite_token, group_season_start, group_season_end, location)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)`,
             [
               slotId,
               owner_id,
@@ -155,42 +499,120 @@ async function createSlot(req, res) {
     const invite_token =
       type === "group" ? crypto.randomBytes(16).toString("hex") : null;
 
+    const groupInviteeList =
+      type === "group" && Array.isArray(voter_emails)
+        ? [...new Set(voter_emails.map((e) => normalizeEmail(e)).filter(Boolean))]
+        : [];
+
+    let slotStart = start_time;
+    let slotEnd = end_time;
+    let groupOptionsToInsert = null;
+
+    let slotSeasonStart = null;
+    let slotSeasonEnd = null;
+    if (type === "group") {
+      if (hasGroupPollWeeklyBatch) {
+        if (group_season_start && group_season_end && group_season_start > group_season_end) {
+          return res.status(400).json({ error: "Season end date must be on or after season start." });
+        }
+        slotSeasonStart = group_season_start || null;
+        slotSeasonEnd = group_season_end || null;
+        groupOptionsToInsert = [];
+        for (const ws of group_poll_weekly_slots) {
+          const target = DAY_NAME_TO_INDEX[String(ws.day || "").trim()];
+          if (target === undefined || !ws.time_start || !ws.time_end) {
+            return res.status(400).json({
+              error: "Each poll choice needs a weekday (day) and time_start / time_end.",
+            });
+          }
+          groupOptionsToInsert.push({
+            weekly: true,
+            weekday: target,
+            start_time: convertTo24Hour(ws.time_start),
+            end_time: convertTo24Hour(ws.time_end),
+          });
+        }
+      } else if (Array.isArray(group_slot_options) && group_slot_options.length > 0) {
+        groupOptionsToInsert = [];
+        for (const option of group_slot_options) {
+          if (!option.date || !option.start_time || !option.end_time) {
+            return res.status(400).json({
+              error: "Each group poll option needs date, start_time, end_time",
+            });
+          }
+          groupOptionsToInsert.push({
+            weekly: false,
+            date: option.date,
+            start_time: convertTo24Hour(option.start_time),
+            end_time: convertTo24Hour(option.end_time),
+          });
+        }
+      } else {
+        return res.status(400).json({
+          error:
+            "Group meeting needs proposed times: add weekday + time choices for students to vote on, or send explicit calendar options.",
+        });
+      }
+      const first = groupOptionsToInsert[0];
+      let anchorDate;
+      if (first.weekly) {
+        anchorDate = firstConcreteDateForPollOption(
+          first.weekday,
+          slotSeasonStart,
+          slotSeasonEnd,
+        );
+      } else {
+        anchorDate = first.date;
+      }
+      slotStart = `${anchorDate} ${first.start_time}`;
+      slotEnd = `${anchorDate} ${first.end_time}`;
+    }
+
     await pool.execute(
-      `INSERT INTO slots (id, owner_id, title, type, status, start_time, end_time, is_recurring, recurrence_weeks, invite_token, location)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO slots (id, owner_id, title, type, status, start_time, end_time, is_recurring, recurrence_weeks, invite_token, group_season_start, group_season_end, location)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         slotId,
         owner_id,
         title,
         type,
-        status || "private",
-        start_time,
-        end_time,
+        type === "group" ? "private" : status || "private",
+        slotStart,
+        slotEnd,
         is_recurring ? 1 : 0,
         recurrence_weeks,
         invite_token,
+        type === "group" ? slotSeasonStart : null,
+        type === "group" ? slotSeasonEnd : null,
         location || "TBD",
       ],
     );
 
-    // If this is a group meeting with voting options, save them
-    if (
-      type === "group" &&
-      group_slot_options &&
-      Array.isArray(group_slot_options)
-    ) {
-      for (const option of group_slot_options) {
+    if (type === "group" && groupOptionsToInsert && groupOptionsToInsert.length > 0) {
+      for (const option of groupOptionsToInsert) {
         const optionId = crypto.randomUUID();
+        if (option.weekly) {
+          await pool.execute(
+            `INSERT INTO group_slot_options (id, slot_id, option_date, start_time, end_time, weekday)
+             VALUES (?, ?, NULL, ?, ?, ?)`,
+            [optionId, slotId, option.start_time, option.end_time, option.weekday],
+          );
+        } else {
+          await pool.execute(
+            `INSERT INTO group_slot_options (id, slot_id, option_date, start_time, end_time, weekday)
+             VALUES (?, ?, ?, ?, ?, NULL)`,
+            [optionId, slotId, option.date, option.start_time, option.end_time],
+          );
+        }
+      }
+    }
+
+    if (type === "group" && groupInviteeList.length) {
+      for (const email of groupInviteeList) {
+        const invId = crypto.randomUUID();
         await pool.execute(
-          `INSERT INTO group_slot_options (id, slot_id, option_date, start_time, end_time)
-           VALUES (?, ?, ?, ?, ?)`,
-          [
-            optionId,
-            slotId,
-            option.date,
-            convertTo24Hour(option.start_time),
-            convertTo24Hour(option.end_time),
-          ],
+          `INSERT INTO group_meeting_invitees (id, slot_id, email) VALUES (?, ?, ?)`,
+          [invId, slotId, email],
         );
       }
     }
@@ -246,10 +668,10 @@ async function getOwnerSlots(req, res) {
         // If it's a group meeting, fetch the voting options AND count unique voters
         if (slot.type === "group") {
           const [options] = await pool.execute(
-            `SELECT id, option_date, start_time, end_time, vote_count
+            `SELECT id, option_date, weekday, start_time, end_time, vote_count
      FROM group_slot_options
      WHERE slot_id = ?
-     ORDER BY option_date, start_time`,
+     ORDER BY ${ORDER_GROUP_OPTIONS()}`,
             [slot.id],
           );
           slot.group_slot_options = options;
@@ -262,6 +684,12 @@ async function getOwnerSlots(req, res) {
             [slot.id],
           );
           slot.voter_count = voterCount[0].voter_count;
+
+          const [inv] = await pool.execute(
+            `SELECT email FROM group_meeting_invitees WHERE slot_id = ? ORDER BY email`,
+            [slot.id],
+          );
+          slot.group_invite_emails = (inv || []).map((r) => r.email);
         }
 
         return slot;
@@ -272,6 +700,46 @@ async function getOwnerSlots(req, res) {
   } catch (err) {
     console.error("Error fetching owner slots:", err);
     res.status(500).json({ error: "Failed to fetch slots" });
+  }
+}
+
+/**
+ * List group meeting polls the student is invited to (not finalized, vote phase)
+ * GET /api/student/group-polls
+ */
+async function getStudentGroupPolls(req, res) {
+  const user_id = req.user.userId;
+
+  try {
+    const [me] = await pool.execute("SELECT email FROM users WHERE id = ?", [
+      user_id,
+    ]);
+    if (me.length === 0) {
+      return res.json([]);
+    }
+    const email = normalizeEmail(me[0].email);
+    const [rows] = await pool.execute(
+      `SELECT s.id, s.title, s.type, s.status, s.start_time, s.end_time, s.location,
+              s.invite_token, s.group_finalized, u.email AS owner_email,
+              (SELECT COUNT(DISTINCT ar.id) FROM availability_responses ar
+                 WHERE ar.slot_id = s.id AND ar.user_id = ?) AS response_count
+       FROM group_meeting_invitees g
+       JOIN slots s ON s.id = g.slot_id
+       JOIN users u ON s.owner_id = u.id
+       WHERE g.email = ? AND s.type = 'group' AND s.group_finalized = 0`,
+      [user_id, email],
+    );
+
+    res.json(
+      (rows || []).map((r) => ({
+        ...r,
+        has_voted: Number(r.response_count) > 0,
+        group_finalized: Boolean(r.group_finalized),
+      })),
+    );
+  } catch (err) {
+    console.error("Error fetching group polls for student:", err);
+    res.status(500).json({ error: "Failed to load group meeting polls" });
   }
 }
 
@@ -303,7 +771,7 @@ async function getSlotById(req, res) {
     // If group meeting, fetch options
     if (slot.type === "group") {
       const [options] = await pool.execute(
-        "SELECT * FROM group_slot_options WHERE slot_id = ? ORDER BY option_date, start_time",
+        `SELECT * FROM group_slot_options WHERE slot_id = ? ORDER BY ${ORDER_GROUP_OPTIONS()}`,
         [id],
       );
       slot.group_slot_options = options;
@@ -325,7 +793,7 @@ async function getSlotOptions(req, res) {
 
   try {
     const [options] = await pool.execute(
-      "SELECT * FROM group_slot_options WHERE slot_id = ? ORDER BY option_date, start_time",
+      `SELECT * FROM group_slot_options WHERE slot_id = ? ORDER BY ${ORDER_GROUP_OPTIONS()}`,
       [id],
     );
 
@@ -540,6 +1008,7 @@ async function browseSlots(req, res) {
        FROM slots s 
        JOIN users u ON s.owner_id = u.id 
        WHERE s.status = 'active'
+         AND s.type != 'group'
          AND NOT EXISTS (
            SELECT 1
            FROM bookings b
@@ -567,6 +1036,7 @@ async function browseSlots(req, res) {
 /**
  * Get slot by invite token (for group meetings)
  * GET /api/invite/:token
+ * Optional auth: if invitee list is set, only listed users may open the poll.
  */
 async function getSlotByInvite(req, res) {
   const { token } = req.params;
@@ -584,18 +1054,47 @@ async function getSlotByInvite(req, res) {
     }
 
     const slot = rows[0];
+    let restricts_to_invitees = false;
+    let is_invited = true;
 
-    // If it's a group meeting, fetch the voting options
     if (slot.type === "group") {
+      const [invRows] = await pool.execute(
+        "SELECT email FROM group_meeting_invitees WHERE slot_id = ?",
+        [slot.id],
+      );
+      restricts_to_invitees = invRows.length > 0;
+      if (restricts_to_invitees) {
+        if (!req.user?.email) {
+          return res.status(401).json({
+            error: "Log in to access this group poll",
+            need_login: true,
+          });
+        }
+        is_invited = invRows.some(
+          (r) => String(r.email).toLowerCase() === req.user.email,
+        );
+        if (!is_invited) {
+          return res.status(403).json({
+            error: "You are not on the invited list for this meeting.",
+          });
+        }
+      }
+
       const [options] = await pool.execute(
-        `SELECT id, option_date, start_time, end_time, vote_count
+        `SELECT id, option_date, weekday, start_time, end_time, vote_count
          FROM group_slot_options
          WHERE slot_id = ?
-         ORDER BY option_date, start_time`,
+         ORDER BY ${ORDER_GROUP_OPTIONS()}`,
         [slot.id],
       );
       slot.group_slot_options = options;
     }
+
+    slot.group_finalized = Boolean(slot.group_finalized);
+    slot.restricts_to_invitees = restricts_to_invitees;
+    slot.is_invited = is_invited;
+    slot.can_vote =
+      !slot.group_finalized && is_invited && slot.type === "group";
 
     res.json(slot);
   } catch (err) {
@@ -625,6 +1124,10 @@ async function finalizeGroupSlot(req, res) {
       return res.status(404).json({ error: "Slot not found" });
     }
 
+    if (isGroupFinalized(slots[0])) {
+      return res.status(400).json({ error: "This meeting is already finalized" });
+    }
+
     // Get the selected option details
     const [options] = await pool.execute(
       "SELECT * FROM group_slot_options WHERE id = ? AND slot_id = ?",
@@ -636,25 +1139,25 @@ async function finalizeGroupSlot(req, res) {
     }
 
     const selectedOption = options[0];
+    const slotRow = slots[0];
 
-    // Update the slot with the finalized time
-    const finalStartTime = `${selectedOption.option_date.split("T")[0]} ${selectedOption.start_time}`;
-    const finalEndTime = `${selectedOption.option_date.split("T")[0]} ${selectedOption.end_time}`;
+    let datePart = formatSqlDatePart(selectedOption.option_date);
+    if (!datePart && selectedOption.weekday != null && selectedOption.weekday !== "") {
+      datePart = firstConcreteDateForPollOption(
+        Number(selectedOption.weekday),
+        slotRow.group_season_start ? formatSqlDatePart(slotRow.group_season_start) : null,
+        slotRow.group_season_end ? formatSqlDatePart(slotRow.group_season_end) : null,
+      );
+    }
+    if (!datePart) {
+      return res.status(400).json({
+        error: "Could not determine a calendar date for the selected option.",
+      });
+    }
 
-    await pool.execute(
-      `UPDATE slots 
-       SET start_time = ?, end_time = ?, is_recurring = ?, recurrence_weeks = ?
-       WHERE id = ?`,
-      [
-        finalStartTime,
-        finalEndTime,
-        is_recurring ? 1 : 0,
-        recurrence_weeks,
-        id,
-      ],
-    );
+    const finalStartTime = `${datePart} ${formatSqlTimePart(selectedOption.start_time)}`;
+    const finalEndTime = `${datePart} ${formatSqlTimePart(selectedOption.end_time)}`;
 
-    // Get all users who voted for this option
     const [voters] = await pool.execute(
       `SELECT DISTINCT user_id 
        FROM availability_responses 
@@ -662,23 +1165,114 @@ async function finalizeGroupSlot(req, res) {
       [id, selected_option_id],
     );
 
-    // Create bookings for all voters
-    for (const voter of voters) {
-      const bookingId = crypto.randomUUID();
-      await pool.execute(
-        `INSERT INTO bookings (id, slot_id, user_id, status)
-         VALUES (?, ?, ?, 'confirmed')`,
-        [bookingId, id, voter.user_id],
+    const weeksRaw = parseInt(recurrence_weeks, 10);
+    const weeks =
+      is_recurring && !Number.isNaN(weeksRaw) && weeksRaw > 0
+        ? Math.min(52, Math.max(1, weeksRaw))
+        : 1;
+    const shouldExpand = Boolean(is_recurring) && weeks > 1;
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      await conn.execute(
+        `UPDATE slots
+         SET start_time = ?, end_time = ?, is_recurring = 0, recurrence_weeks = NULL,
+             group_finalized = 1, status = 'private'
+         WHERE id = ?`,
+        [finalStartTime, finalEndTime, id],
       );
+
+      for (const voter of voters) {
+        const bookingId = crypto.randomUUID();
+        await conn.execute(
+          `INSERT INTO bookings (id, slot_id, user_id, status)
+           VALUES (?, ?, ?, 'confirmed')`,
+          [bookingId, id, voter.user_id],
+        );
+      }
+
+      if (shouldExpand) {
+        const t0s = parseMysqlDatetimeLocal(finalStartTime);
+        const t0e = parseMysqlDatetimeLocal(finalEndTime);
+        if (Number.isNaN(t0s.getTime()) || Number.isNaN(t0e.getTime())) {
+          throw new Error("Invalid datetime for recurrence expansion");
+        }
+        const [inviteRows] = await conn.execute(
+          "SELECT email FROM group_meeting_invitees WHERE slot_id = ? ORDER BY email",
+          [id],
+        );
+        for (let w = 1; w < weeks; w++) {
+          const ns = new Date(t0s);
+          ns.setDate(ns.getDate() + 7 * w);
+          const ne = new Date(t0e);
+          ne.setDate(ne.getDate() + 7 * w);
+          const newId = crypto.randomUUID();
+          const newToken = crypto.randomBytes(16).toString("hex");
+          await conn.execute(
+            `INSERT INTO slots (id, owner_id, title, type, status, start_time, end_time, is_recurring, recurrence_weeks, invite_token, group_finalized, group_season_start, group_season_end, location)
+             SELECT ?, owner_id, title, type, 'private', ?, ?, 0, NULL, ?, 1, NULL, NULL, location
+             FROM slots WHERE id = ?`,
+            [newId, formatMysqlDatetimeLocal(ns), formatMysqlDatetimeLocal(ne), newToken, id],
+          );
+          for (const row of inviteRows || []) {
+            const invId = crypto.randomUUID();
+            await conn.execute(
+              `INSERT INTO group_meeting_invitees (id, slot_id, email) VALUES (?, ?, ?)`,
+              [invId, newId, row.email],
+            );
+          }
+          for (const voter of voters) {
+            const bookingId = crypto.randomUUID();
+            await conn.execute(
+              `INSERT INTO bookings (id, slot_id, user_id, status) VALUES (?, ?, ?, 'confirmed')`,
+              [bookingId, newId, voter.user_id],
+            );
+          }
+        }
+      }
+
+      await conn.commit();
+    } catch (txnErr) {
+      await conn.rollback();
+      console.error("finalizeGroupSlot transaction:", txnErr);
+      return res.status(500).json({ error: "Failed to finalize group meeting" });
+    } finally {
+      conn.release();
     }
 
-    // TODO: Handle recurring meetings (create additional slots)
-    // TODO: Send email notifications
+    const [allInviteeRows] = await pool.execute(
+      "SELECT email FROM group_meeting_invitees WHERE slot_id = ? ORDER BY email",
+      [id],
+    );
+    let notify_emails = (allInviteeRows || []).map((r) => r.email);
+    if (notify_emails.length === 0) {
+      const [voterEmails] = await pool.execute(
+        `SELECT DISTINCT u.email
+         FROM availability_responses ar
+         JOIN users u ON u.id = ar.user_id
+         WHERE ar.slot_id = ?`,
+        [id],
+      );
+      notify_emails = voterEmails.map((v) => v.email);
+    }
+    notify_emails = [...new Set(notify_emails)];
+
+    // TODO: Send email notifications (SMTP)
+    // Owner can use mailto to notify invitees; see client finalize handler.
+
+    const bookingRows = voters.length * (shouldExpand ? weeks : 1);
 
     res.json({
       success: true,
-      message: "Group meeting finalized",
-      bookings_created: voters.length,
+      message: shouldExpand
+        ? `Group meeting finalized (${weeks} weekly instances created)`
+        : "Group meeting finalized",
+      bookings_created: bookingRows,
+      series_weeks: shouldExpand ? weeks : null,
+      notify_emails,
+      final_time_label: `${finalStartTime} – ${finalEndTime}`,
     });
   } catch (err) {
     console.error("Error finalizing group slot:", err);
@@ -689,8 +1283,11 @@ async function finalizeGroupSlot(req, res) {
 module.exports = {
   createSlot,
   getOwnerSlots,
+  getStudentGroupPolls,
   getSlotById,
   getSlotOptions,
+  addGroupSlotOptions,
+  deleteGroupSlotOption,
   updateSlot,
   deleteSlot,
   deleteRecurringSeries,

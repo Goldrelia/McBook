@@ -3,7 +3,7 @@
 // Hooman Azari - 261055604
 
 import { useState } from "react";
-import { Calendar, Clock, MapPin, Mail, Trash2, Link, Eye, EyeOff, Users } from "lucide-react";
+import { Calendar, Clock, MapPin, Mail, Trash2, Link, Eye, EyeOff, Users, Pencil } from "lucide-react";
 import Btn from "../../components/Btn";
 import Avatar from "../../components/Avatar";
 
@@ -21,7 +21,7 @@ const ICON_SIZE = 13;
 //   onCopyLink       — copy invite link
 //   copied           — boolean, true briefly after copy
 //   onFinalize       — open finalize modal (group slots only)
-export default function SlotCard({ slot, delay, onToggle, onDelete, confirmingDelete, onConfirmDelete, onCancelDelete, onCopyLink, copied, onFinalize }) {
+export default function SlotCard({ slot, delay, onToggle, onDelete, confirmingDelete, onConfirmDelete, onCancelDelete, onCopyLink, copied, onFinalize, onEditPollOptions }) {
   const [hov, setHov] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const isActive = slot.status === "active";
@@ -57,7 +57,9 @@ export default function SlotCard({ slot, delay, onToggle, onDelete, confirmingDe
                 Group Meeting
               </span>
             )}
-            {!!slot.is_recurring && slot.recurrence_weeks > 0 && (
+            {!!slot.is_recurring &&
+              slot.recurrence_weeks > 0 &&
+              !(isGroup && slot.finalized) && (
               <span style={{ padding: "2px 8px", borderRadius: 5, fontSize: 11, fontWeight: 600, background: "rgba(59,130,246,0.1)", color: "#3b82f6" }}>
                 Recurring · {slot.recurrence_weeks}w
               </span>
@@ -160,6 +162,11 @@ export default function SlotCard({ slot, delay, onToggle, onDelete, confirmingDe
           {isGroup && (
             <Btn variant="outline" onClick={onCopyLink}>
               <Link size={ICON_SIZE} /> {copied ? "Copied!" : "Copy invite link"}
+            </Btn>
+          )}
+          {isGroup && !slot.finalized && onEditPollOptions && (
+            <Btn variant="outline" onClick={onEditPollOptions} style={{ color: "var(--text2)", borderColor: "var(--border)" }}>
+              <Pencil size={ICON_SIZE} /> Edit poll times
             </Btn>
           )}
           {isGroup && !slot.finalized && (

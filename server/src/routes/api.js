@@ -3,7 +3,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { authenticateToken, requireOwner } = require('../middleware/auth');
+const { authenticateToken, requireOwner, optionalAuth } = require('../middleware/auth');
 const slotsController = require('../controllers/slotsController');
 const bookingsController = require('../controllers/bookingsController');
 const meetingRequestsController = require('../controllers/meetingRequestsController');
@@ -16,11 +16,28 @@ router.get('/slots', authenticateToken, requireOwner, slotsController.getOwnerSl
 router.get('/slots/:id', authenticateToken, slotsController.getSlotById);
 router.get('/slots/:id/options', authenticateToken, slotsController.getSlotOptions);
 router.patch('/slots/:id', authenticateToken, requireOwner, slotsController.updateSlot);
-router.delete('/slots/:id', authenticateToken, requireOwner, slotsController.deleteSlot);
 router.delete('/slots/:id/series', authenticateToken, requireOwner, slotsController.deleteRecurringSeries);
+router.post(
+  '/slots/:id/group-options',
+  authenticateToken,
+  requireOwner,
+  slotsController.addGroupSlotOptions
+);
+router.delete(
+  '/slots/:id/group-options/:optionId',
+  authenticateToken,
+  requireOwner,
+  slotsController.deleteGroupSlotOption
+);
+router.delete('/slots/:id', authenticateToken, requireOwner, slotsController.deleteSlot);
 router.post('/slots/:id/finalize', authenticateToken, requireOwner, slotsController.finalizeGroupSlot);
 router.get('/browse/slots', authenticateToken, slotsController.browseSlots);
-router.get('/invite/:token', slotsController.getSlotByInvite);
+router.get(
+  '/student/group-polls',
+  authenticateToken,
+  slotsController.getStudentGroupPolls
+);
+router.get('/invite/:token', optionalAuth, slotsController.getSlotByInvite);
 
 // VOTING (for group meetings)
 router.post('/slots/:token/vote', authenticateToken, availabilityController.submitVote);
