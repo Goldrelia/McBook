@@ -9,13 +9,16 @@ import Avatar from "../components/Avatar";
 import Footer from "../components/Footer";
 import PillBadge from "../components/PillBadge";
 import { Calendar, Users, Mail, Bell } from "lucide-react";
+import weibrinePhoto from "../assets/Weibrine.png";
+import canadianderssop from "../assets/canadianderssop.png"
+import goldrelia from "../assets/Goldrelia.png"
+import houmanAzari from "../assets/HoumanAzari.png"
 import {
   SiGithub,
   SiReact, SiVite, SiNodedotjs, SiExpress, SiMysql,
 } from "@icons-pack/react-simple-icons";
 
-// TODO: replace with our actual repo URL
-const REPO_URL = "https://github.com/your-org/your-repo";
+const REPO_URL = "https://github.com/Goldrelia/McBook";
 
 // TODO: fill in role, contributions, github, and photo
 // photo: import the image ex: import aurelia from "../assets/aurelia.jpg"
@@ -23,35 +26,35 @@ const REPO_URL = "https://github.com/your-org/your-repo";
 const TEAM = [
   {
     name: "Aurelia Bouliane",
-    role: "write",
+    role: "Full Stack Developer",
     email: "aurelia.bouliane@mail.mcgill.ca",
-    github: "https://github.com/placeholder",
-    contributions: "TODO",
-    photo: null,
+    github: "https://github.com/Goldrelia",
+    contributions: "Frontend, Backend, Database",
+    photo: goldrelia,
   },
   {
     name: "Hooman Azari",
-    role: "write",
-    email: "member.two@mail.mcgill.ca",
-    github: "https://github.com/placeholder",
-    contributions: "TODO",
-    photo: null,
+    role: "Full Stack Developer",
+    email: "hooman.azari@mail.mcgill.ca",
+    github: "https://github.com/HoumanAzari",
+    contributions: "Frontend, Backend, Database",
+    photo: houmanAzari,
   },
   {
-    name: "Team Member Three",
-    role: "write",
-    email: "member.three@mail.mcgill.ca",
-    github: "https://github.com/placeholder",
-    contributions: "TODO",
-    photo: null,
+    name: "Derek Long",
+    role: "Backend Developer",
+    email: "derek.long@mail.mcgill.ca",
+    github: "https://github.com/canadianderssop",
+    contributions: "Backend",
+    photo: canadianderssop,
   },
   {
-    name: "Team Member Four",
-    role: "write",
-    email: "member.four@mail.mcgill.ca",
-    github: "https://github.com/placeholder",
-    contributions: "TODO",
-    photo: null,
+    name: "Wei-Sen Wang",
+    role: "Backend Developer",
+    email: "wei-sen.wang@mail.mcgill.ca",
+    github: "https://github.com/Weibrine",
+    contributions: "Backend",
+    photo: weibrinePhoto,
   },
 ];
 
@@ -201,6 +204,7 @@ export default function AboutPage() {
 // -- TeamCard
 function TeamCard({ member }) {
   const [hov, setHov] = useState(false);
+  const githubUsername = member.github.split("/").filter(Boolean).pop();
 
   return (
     <div
@@ -251,7 +255,7 @@ function TeamCard({ member }) {
           onMouseEnter={e => e.currentTarget.style.color = "var(--red)"}
           onMouseLeave={e => e.currentTarget.style.color = "var(--text2)"}
         >
-          <SiGithub size={14} /> GitHub
+          <SiGithub size={14} /> {githubUsername}
         </a>
       </div>
     </div>
