@@ -890,6 +890,11 @@ async function deleteSlot(req, res) {
       [id],
     );
 
+    const [invitees] = await pool.execute(
+      `SELECT email FROM group_meeting_invitees WHERE slot_id = ?`,
+      [id],
+    );
+
     for (let booking of bookings) {
       await pool.execute(
         `INSERT INTO notifications (user_id, type, message)
@@ -901,11 +906,47 @@ async function deleteSlot(req, res) {
       );
     }
 
+    // Group-poll invitees may include users without confirmed bookings yet.
+    // If invitee emails belong to local users, notify them in-app too.
+    const inviteeEmails = (invitees || [])
+      .map((r) => normalizeEmail(r.email))
+      .filter(Boolean);
+    if (inviteeEmails.length > 0) {
+      const placeholders = inviteeEmails.map(() => "?").join(",");
+      const [inviteeUsers] = await pool.execute(
+        `SELECT id, email FROM users WHERE email IN (${placeholders})`,
+        inviteeEmails,
+      );
+      const alreadyNotified = new Set(bookings.map((b) => Number(b.user_id)));
+      for (const u of inviteeUsers) {
+        const uid = Number(u.id);
+        if (alreadyNotified.has(uid)) continue;
+        await pool.execute(
+          `INSERT INTO notifications (user_id, type, message)
+           VALUES (?, 'slot_deleted', ?)`,
+          [
+            uid,
+            `The group meeting "${slots[0].title}" you were invited to has been cancelled by the organizer.`,
+          ],
+        );
+      }
+    }
+
+    const notify_emails = [
+      ...new Set(
+        [
+          ...bookings.map((b) => normalizeEmail(b.email)),
+          ...inviteeEmails,
+        ].filter(Boolean),
+      ),
+    ];
+
     await pool.execute("DELETE FROM slots WHERE id = ?", [id]);
 
     res.json({
       message: "Slot deleted successfully",
       affected_users: bookings.length,
+      notify_emails,
     });
   } catch (err) {
     console.error("Error deleting slot:", err);
@@ -982,6 +1023,30 @@ async function deleteRecurringSeries(req, res) {
       );
     }
 
+    const [bookingEmails] = await pool.execute(
+      `SELECT DISTINCT u.email
+       FROM bookings b
+       JOIN users u ON u.id = b.user_id
+       WHERE b.slot_id IN (${placeholders})`,
+      slotIds
+    );
+
+    const [invitees] = await pool.execute(
+      `SELECT DISTINCT g.email
+       FROM group_meeting_invitees g
+       WHERE g.slot_id IN (${placeholders})`,
+      slotIds
+    );
+
+    const notify_emails = [
+      ...new Set(
+        [
+          ...(bookingEmails || []).map((r) => normalizeEmail(r.email)),
+          ...(invitees || []).map((r) => normalizeEmail(r.email)),
+        ].filter(Boolean),
+      ),
+    ];
+
     await pool.execute(
       `DELETE FROM slots WHERE id IN (${placeholders})`,
       slotIds
@@ -990,6 +1055,7 @@ async function deleteRecurringSeries(req, res) {
     res.json({
       message: "Recurring series deleted successfully",
       deleted_count: slotIds.length,
+      notify_emails,
     });
   } catch (err) {
     console.error("Error deleting recurring series:", err);

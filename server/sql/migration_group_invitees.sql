@@ -1,4 +1,3 @@
--- Author:
 -- Hooman Azari - 261055604
 -- Run once on existing DBs: adds group meeting invitee list and finalized flag
 USE `comp-307-db`;

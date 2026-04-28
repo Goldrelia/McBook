@@ -1,4 +1,5 @@
 // Authors:
+// Hooman Azari - 261055604
 // Derek Long - 2616161918
 // Aurelia Bouliane - 261118164
 
@@ -19,6 +20,17 @@ app.use(express.json());
 // Import API routes
 const apiRoutes = require('./routes/api');
 
+function isStrongPassword(password) {
+  const p = String(password || '');
+  return (
+    p.length >= 8 &&
+    /[a-z]/.test(p) &&
+    /[A-Z]/.test(p) &&
+    /\d/.test(p) &&
+    /[^A-Za-z0-9]/.test(p)
+  );
+}
+
 // ==================== AUTHENTICATION ====================
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
@@ -37,6 +49,12 @@ app.post('/api/auth/login', async (req, res) => {
     let userRole;
 
     if (rows.length === 0) {
+      if (!isStrongPassword(password)) {
+        return res.status(400).json({
+          error:
+            'Password must be at least 8 characters and include uppercase, lowercase, number, and special character.',
+        });
+      }
       // Create new user
       const hashedPassword = await bcrypt.hash(password, 10);
       const [result] = await pool.execute('INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)', [normalizedEmail, hashedPassword, role]);

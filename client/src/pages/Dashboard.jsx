@@ -9,6 +9,7 @@ import Navbar from "../components/Navbar";
 import Btn from "../components/Btn";
 import Card from "../components/Card";
 import CalendarExportBlock from "../components/CalendarExportBlock";
+import TopToast from "../components/TopToast";
 import { buildStudentAppointmentsIcs, downloadIcsFile } from "../utils/calendarExport";
 import SearchInput from "../components/SearchInput";
 import AppointmentCard from "../features/dashboard/AppointmentCard";
@@ -25,6 +26,7 @@ export default function Dashboard() {
   const [search, setSearch] = useState("");
   const [filterKey, setFilterKey] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null);
   const [exportConfirmedBookingsOnly, setExportConfirmedBookingsOnly] = useState(() => {
     const v = localStorage.getItem("mcbook-student-export-confirmed-only");
     if (v === null) return true;
@@ -255,7 +257,7 @@ export default function Dashboard() {
       ]);
     } catch (err) {
       console.error('Failed to load bookings:', err);
-      alert('Failed to load your appointments. Please try again.');
+      setToast({ type: "error", message: "Failed to load your appointments. Please try again." });
     } finally {
       setLoading(false);
     }
@@ -285,7 +287,7 @@ export default function Dashboard() {
     } catch (err) {
       console.error('Error cancelling booking:', err);
       setAppointments(oldAppointments); // Restore on error
-      alert('Failed to cancel booking');
+      setToast({ type: "error", message: "Failed to cancel booking." });
     }
   }
 
@@ -301,11 +303,12 @@ export default function Dashboard() {
       confirmedOnly: exportConfirmedBookingsOnly,
     });
     if (!ics) {
-      alert(
-        exportConfirmedBookingsOnly
-          ? "No confirmed appointments with set times to export. Uncheck the filter to include pending meeting requests (with a preferred date) and other items."
-          : "Nothing to export. Confirmed bookings need slot times; pending meeting requests need a preferred date in the request message.",
-      );
+      setToast({
+        type: "info",
+        message: exportConfirmedBookingsOnly
+          ? "No confirmed appointments with set times to export. Uncheck the filter to include pending meeting requests."
+          : "Nothing to export. Confirmed bookings need slot times; pending requests need a preferred date.",
+      });
       return;
     }
     downloadIcsFile("mcbook-my-appointments.ics", ics);
@@ -342,6 +345,11 @@ export default function Dashboard() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <TopToast
+        message={toast?.message}
+        type={toast?.type}
+        onClose={() => setToast(null)}
+      />
 
       <Navbar
         theme={theme}
@@ -390,6 +398,7 @@ export default function Dashboard() {
                   showBookedOnlyOption
                   bookedOnly={exportConfirmedBookingsOnly}
                   onBookedOnlyChange={handleStudentExportFilterChange}
+                  filterLabel="When checked, export only confirmed appointments (pending requests are excluded)."
                 />
                 <Btn variant="outline" onClick={handleLogout} style={{ width: "100%", justifyContent: "center", marginTop: 10 }}>
                   <LogOut size={14} /> Log out
@@ -470,6 +479,7 @@ export default function Dashboard() {
                   showBookedOnlyOption
                   bookedOnly={exportConfirmedBookingsOnly}
                   onBookedOnlyChange={handleStudentExportFilterChange}
+                  filterLabel="When checked, export only confirmed appointments (pending requests are excluded)."
                 />
                 <Btn variant="outline" onClick={handleLogout} style={{ width: "100%", justifyContent: "center", marginTop: 10 }}>
                   <LogOut size={14} /> Log out

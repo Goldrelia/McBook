@@ -13,10 +13,13 @@ export default function CalendarExportBlock({
   bookedOnly = false,
   onBookedOnlyChange,
   showBookedOnlyOption = false,
-  filterLabel = "Only slots with a confirmed booking",
+  filterLabel = "Export only confirmed/booked items",
 }) {
   return (
     <div>
+      <Btn variant="outline" onClick={onExport} style={{ width: "100%", justifyContent: "center", marginBottom: 8 }}>
+        <Download size={14} /> Export to calendar
+      </Btn>
       {showBookedOnlyOption && onBookedOnlyChange && (
         <label
           style={{
@@ -26,7 +29,6 @@ export default function CalendarExportBlock({
             fontSize: 12.5,
             color: "var(--text2)",
             cursor: "pointer",
-            marginBottom: 10,
             userSelect: "none",
             lineHeight: 1.35,
           }}
@@ -37,15 +39,11 @@ export default function CalendarExportBlock({
             onChange={(e) => onBookedOnlyChange(e.target.checked)}
             style={{ accentColor: "var(--red)", width: 15, height: 15, cursor: "pointer", marginTop: 2, flexShrink: 0 }}
           />
-          <span>{filterLabel}</span>
+          <span>
+            <strong style={{ color: "var(--text)" }}>Export filter:</strong> {filterLabel}
+          </span>
         </label>
       )}
-      <Btn variant="outline" onClick={onExport} style={{ width: "100%", justifyContent: "center", marginBottom: 8 }}>
-        <Download size={14} /> Export to calendar
-      </Btn>
-      <p style={{ fontSize: 11.5, color: "var(--text3)", lineHeight: 1.45, margin: 0 }}>
-        Downloads an .ics file. In Google Calendar use Settings → Import; in Outlook use File → Open → Calendar.
-      </p>
     </div>
   );
 }

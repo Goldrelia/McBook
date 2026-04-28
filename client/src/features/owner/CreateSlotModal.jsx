@@ -25,7 +25,7 @@ export function CreateSlotModal({ onClose, onSave }) {
       <div
         onClick={e => e.stopPropagation()}
         className="mc-fade"
-        style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: 28, width: "100%", maxWidth: 480, boxSizing: "border-box", boxShadow: "0 24px 64px rgba(0,0,0,0.18)" }}
+        style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: 28, width: "100%", maxWidth: 480, minHeight: 640, maxHeight: "88vh", overflowY: "auto", boxSizing: "border-box", boxShadow: "0 24px 64px rgba(0,0,0,0.18)" }}
       >
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
@@ -38,8 +38,8 @@ export function CreateSlotModal({ onClose, onSave }) {
         {/* Type tabs */}
         <div style={{ display: "flex", gap: 2, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, padding: 3, marginBottom: 22 }}>
           {[
-            { key: "type2", label: "Type 2" },
-            { key: "type3", label: "Type 3" },
+            { key: "type2", label: "Group Meeting" },
+            { key: "type3", label: "Recurring Meeting" },
           ].map(t => (
             <button
               key={t.key}
@@ -57,11 +57,6 @@ export function CreateSlotModal({ onClose, onSave }) {
             </button>
           ))}
         </div>
-        <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 16, marginTop: -14 }}>
-          {modalTab === "type2" && "Group Meeting — participants vote on available times"}
-          {modalTab === "type3" && "Recurring Office Hours — open slots anyone can reserve"}
-        </div>
-
         {modalTab === "type2" && <Type2Form onClose={onClose} onSave={onSave} />}
         {modalTab === "type3" && <Type3Form onClose={onClose} onSave={onSave} />}
       </div>
@@ -93,7 +88,7 @@ function Type1Form({ onClose, onSave }) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: 540 }}>
       <div>
         <label className="mc-label">Slot title *</label>
         <input className="mc-input" placeholder="e.g. Office Hours — COMP 307" value={form.title} onChange={e => set("title", e.target.value)} />
@@ -145,9 +140,16 @@ function parseVoterEmails(text) {
 }
 
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const LONG_DATE_OPTIONS = { weekday: "long", year: "numeric", month: "long", day: "numeric" };
+
+function formatLongDate(dateValue) {
+  if (!dateValue) return "";
+  const parsed = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return dateValue;
+  return parsed.toLocaleDateString(undefined, LONG_DATE_OPTIONS);
+}
 
 function Type2Form({ onClose, onSave }) {
-  const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     title: "",
     location: "",
@@ -212,286 +214,195 @@ function Type2Form({ onClose, onSave }) {
     parseVoterEmails(voterEmailsText).length > 0 &&
     seasonOk;
 
-  // Step 1
-  if (step === 1)
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <div style={{ fontSize: 12.5, color: "var(--text3)", marginTop: -8 }}>
-          Step 1 of 2 — Students pick one weekday + time per option (e.g. Monday 2pm vs Thursday 2pm). Optional window describes roughly when meetings might run.
-        </div>
-        <div>
-          <label className="mc-label">Meeting title *</label>
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: 560 }}>
+      <div>
+        <label className="mc-label">Meeting title *</label>
+        <input
+          className="mc-input"
+          placeholder="e.g. Project Demo Scheduling"
+          value={form.title}
+          onChange={(e) => setF("title", e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="mc-label">Location</label>
+        <input
+          className="mc-input"
+          placeholder="e.g. Trottier 3090 or Online (Zoom)"
+          value={form.location}
+          onChange={(e) => setF("location", e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="mc-label">People who can vote (students or owners) *</label>
+        <textarea
+          className="mc-input"
+          rows={3}
+          placeholder="One @mcgill.ca or @mail.mcgill.ca per line, or comma-separated"
+          value={voterEmailsText}
+          onChange={(e) => setVoterEmailsText(e.target.value)}
+          style={{ resize: "vertical", minHeight: 72, fontSize: 13.5, lineHeight: 1.45 }}
+        />
+      </div>
+      <div>
+        <label className="mc-label">Possible meeting window (optional)</label>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+            padding: "8px 12px",
+            background: "var(--surface2)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+          }}
+        >
+          <span style={{ fontSize: 12.5, color: "var(--text3)" }}>From</span>
           <input
-            className="mc-input"
-            placeholder="e.g. Project Demo Scheduling"
-            value={form.title}
-            onChange={(e) => setF("title", e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="mc-label">Location</label>
-          <input
-            className="mc-input"
-            placeholder="e.g. Trottier 3090 or Online (Zoom)"
-            value={form.location}
-            onChange={(e) => setF("location", e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="mc-label">Students who can vote *</label>
-          <textarea
-            className="mc-input"
-            rows={3}
-            placeholder="One @mail.mcgill.ca per line, or comma-separated"
-            value={voterEmailsText}
-            onChange={(e) => setVoterEmailsText(e.target.value)}
-            style={{ resize: "vertical", minHeight: 72, fontSize: 13.5, lineHeight: 1.45 }}
-          />
-          <div style={{ fontSize: 12, color: "var(--text3)", lineHeight: 1.5, marginTop: 6 }}>
-            Only these accounts see the poll under <strong style={{ color: "var(--text2)" }}>Group Meetings</strong> on their dashboard.
-          </div>
-        </div>
-        <div>
-          <label className="mc-label">Possible meeting window (optional)</label>
-          <div
+            type="date"
+            value={form.season_start}
+            onChange={(e) => setF("season_start", e.target.value)}
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexWrap: "wrap",
-              padding: "8px 12px",
-              background: "var(--surface2)",
-              border: "1px solid var(--border)",
-              borderRadius: 8,
+              padding: "5px 10px",
+              background: form.season_start ? "rgba(26,115,232,0.1)" : "var(--surface)",
+              border: `1px solid ${form.season_start ? "rgba(26,115,232,0.35)" : "var(--border)"}`,
+              borderRadius: 6,
+              fontSize: 13.5,
+              fontFamily: "inherit",
+              color: form.season_start ? "#1a73e8" : "var(--text3)",
+              fontWeight: 500,
+              cursor: "pointer",
+              outline: "none",
+            }}
+          />
+          <span style={{ fontSize: 12.5, color: "var(--text3)" }}>to</span>
+          <input
+            type="date"
+            value={form.season_end}
+            onChange={(e) => setF("season_end", e.target.value)}
+            style={{
+              padding: "5px 10px",
+              background: form.season_end ? "rgba(26,115,232,0.1)" : "var(--surface)",
+              border: `1px solid ${form.season_end ? "rgba(26,115,232,0.35)" : "var(--border)"}`,
+              borderRadius: 6,
+              fontSize: 13.5,
+              fontFamily: "inherit",
+              color: form.season_end ? "#1a73e8" : "var(--text3)",
+              fontWeight: 500,
+              cursor: "pointer",
+              outline: "none",
+            }}
+          />
+        </div>
+      </div>
+      <div>
+        <label className="mc-label">Vote choices (weekday + time) *</label>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+            padding: "8px 12px",
+            background: "var(--surface2)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            marginBottom: 8,
+          }}
+        >
+          <select
+            value={newRow.day}
+            onChange={(e) => setNR("day", e.target.value)}
+            style={{
+              padding: "5px 10px",
+              background: "rgba(26,115,232,0.1)",
+              border: "1px solid rgba(26,115,232,0.35)",
+              borderRadius: 6,
+              fontSize: 13.5,
+              fontFamily: "inherit",
+              color: "#1a73e8",
+              fontWeight: 500,
+              cursor: "pointer",
+              outline: "none",
+              appearance: "none",
             }}
           >
-            <span style={{ fontSize: 12.5, color: "var(--text3)" }}>From</span>
-            <input
-              type="date"
-              value={form.season_start}
-              onChange={(e) => setF("season_start", e.target.value)}
-              style={{
-                padding: "5px 10px",
-                background: form.season_start ? "rgba(26,115,232,0.1)" : "var(--surface)",
-                border: `1px solid ${form.season_start ? "rgba(26,115,232,0.35)" : "var(--border)"}`,
-                borderRadius: 6,
-                fontSize: 13.5,
-                fontFamily: "inherit",
-                color: form.season_start ? "#1a73e8" : "var(--text3)",
-                fontWeight: 500,
-                cursor: "pointer",
-                outline: "none",
-              }}
-            />
-            <span style={{ fontSize: 12.5, color: "var(--text3)" }}>to</span>
-            <input
-              type="date"
-              value={form.season_end}
-              onChange={(e) => setF("season_end", e.target.value)}
-              style={{
-                padding: "5px 10px",
-                background: form.season_end ? "rgba(26,115,232,0.1)" : "var(--surface)",
-                border: `1px solid ${form.season_end ? "rgba(26,115,232,0.35)" : "var(--border)"}`,
-                borderRadius: 6,
-                fontSize: 13.5,
-                fontFamily: "inherit",
-                color: form.season_end ? "#1a73e8" : "var(--text3)",
-                fontWeight: 500,
-                cursor: "pointer",
-                outline: "none",
-              }}
-            />
-          </div>
-          <div style={{ fontSize: 12, color: "var(--text3)", lineHeight: 1.5, marginTop: 6 }}>
-            Shown to students as context only (e.g. “January–March”). Leave blank if you do not need a range. If you set one date, set both; end must be on or after start.
-          </div>
-        </div>
-        <div>
-          <label className="mc-label">Vote choices (weekday + time) *</label>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexWrap: "wrap",
-              padding: "8px 12px",
-              background: "var(--surface2)",
-              border: "1px solid var(--border)",
-              borderRadius: 8,
-              marginBottom: 8,
-            }}
+            {WEEKDAYS.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+          <TimeDropdown value={newRow.time_start} onChange={(v) => setNR("time_start", v)} placeholder="Start" />
+          <span style={{ color: "var(--text3)", fontSize: 13 }}>–</span>
+          <TimeDropdown value={newRow.time_end} onChange={(v) => setNR("time_end", v)} placeholder="End" />
+          <Btn
+            variant="red"
+            onClick={addWeeklyRow}
+            style={{ padding: "5px 12px", fontSize: 12, marginLeft: "auto" }}
+            disabled={!newRow.time_start || !newRow.time_end}
           >
-            <select
-              value={newRow.day}
-              onChange={(e) => setNR("day", e.target.value)}
-              style={{
-                padding: "5px 10px",
-                background: "rgba(26,115,232,0.1)",
-                border: "1px solid rgba(26,115,232,0.35)",
-                borderRadius: 6,
-                fontSize: 13.5,
-                fontFamily: "inherit",
-                color: "#1a73e8",
-                fontWeight: 500,
-                cursor: "pointer",
-                outline: "none",
-                appearance: "none",
-              }}
-            >
-              {WEEKDAYS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-            <TimeDropdown value={newRow.time_start} onChange={(v) => setNR("time_start", v)} placeholder="Start" />
-            <span style={{ color: "var(--text3)", fontSize: 13 }}>–</span>
-            <TimeDropdown value={newRow.time_end} onChange={(v) => setNR("time_end", v)} placeholder="End" />
-            <Btn
-              variant="red"
-              onClick={addWeeklyRow}
-              style={{ padding: "5px 12px", fontSize: 12, marginLeft: "auto" }}
-              disabled={!newRow.time_start || !newRow.time_end}
-            >
-              + Add
-            </Btn>
-          </div>
+            + Add
+          </Btn>
+        </div>
 
-          {form.weeklySlots.length === 0 ? (
-            <div style={{ fontSize: 12.5, color: "var(--text3)", textAlign: "center", padding: "12px 0" }}>
-              No choices yet — e.g. Monday 2:00pm–3:00pm vs Thursday 2:00pm–3:00pm (one row per alternative)
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {form.weeklySlots.map((s) => (
-                <div
-                  key={s.id}
+        {form.weeklySlots.length === 0 ? (
+          <div style={{ fontSize: 12.5, color: "var(--text3)", textAlign: "center", padding: "12px 0" }}>
+            No choices yet
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {form.weeklySlots.map((s) => (
+              <div
+                key={s.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "8px 12px",
+                  background: "var(--surface2)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 7,
+                }}
+              >
+                <div style={{ fontSize: 13, color: "var(--text)" }}>
+                  <span style={{ fontWeight: 600 }}>{s.day}</span>
+                  <span style={{ color: "var(--text3)", margin: "0 6px" }}>·</span>
+                  {s.time}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeRow(s.id)}
                   style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "var(--text3)",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "8px 12px",
-                    background: "var(--surface2)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 7,
+                    padding: 2,
+                    transition: "color 0.15s",
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--red)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text3)")}
                 >
-                  <div style={{ fontSize: 13, color: "var(--text)" }}>
-                    <span style={{ fontWeight: 600 }}>{s.day}</span>
-                    <span style={{ color: "var(--text3)", margin: "0 6px" }}>·</span>
-                    {s.time}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeRow(s.id)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      color: "var(--text3)",
-                      display: "flex",
-                      alignItems: "center",
-                      padding: 2,
-                      transition: "color 0.15s",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "var(--red)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text3)")}
-                  >
-                    <X size={ICON_SIZE} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
-          <Btn variant="outline" onClick={onClose}>
-            Cancel
-          </Btn>
-          <Btn variant="red" onClick={() => setStep(2)} style={{ opacity: step1Ok ? 1 : 0.5 }} disabled={!step1Ok}>
-            Next — Review →
-          </Btn>
-        </div>
-      </div>
-    );
-
-  // Step 2
-  const voterList = parseVoterEmails(voterEmailsText);
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ fontSize: 12.5, color: "var(--text3)", marginTop: -8 }}>Step 2 of 2 — Review &amp; publish</div>
-
-      <div style={{ padding: 16, background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 8 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#3b82f6", marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}>
-          <Users size={ICON_SIZE} /> Invited voters
-        </div>
-        <div style={{ fontSize: 12.5, color: "var(--text2)", marginBottom: 8, lineHeight: 1.6 }}>
-          {voterList.length} student{voterList.length === 1 ? "" : "s"} will see this under <strong>Group Meetings</strong> with a <strong>needs your vote</strong> status until they respond; then it shows as pending until you finalize the time.
-        </div>
-        <div style={{ fontSize: 12, color: "var(--text3)", lineHeight: 1.5 }}>
-          After you publish, the real invite URL appears on your dashboard — the <strong>Copy invite link</strong> button there always matches the server.
-        </div>
-        <div style={{ fontSize: 12, color: "var(--text3)", lineHeight: 1.5, marginTop: 8 }}>
-          The poll is created as <strong style={{ color: "var(--text2)" }}>private</strong> (only you manage it on the owner dashboard). After you finalize a time, it stays private until you use <strong>Activate</strong> on each meeting card so students see that confirmed meeting under <strong>My Appointments</strong>; <strong>Make private</strong> hides it again.
-        </div>
-      </div>
-
-      {form.season_start && form.season_end ? (
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>Possible window</div>
-          <div style={{ fontSize: 13, color: "var(--text2)" }}>
-            {form.season_start} → {form.season_end}
+                  <X size={ICON_SIZE} />
+                </button>
+              </div>
+            ))}
           </div>
-        </div>
-      ) : null}
-
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>
-          Vote choices ({form.weeklySlots.length})
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {form.weeklySlots.map((s) => (
-            <div
-              key={s.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "7px 12px",
-                background: "var(--surface2)",
-                border: "1px solid var(--border)",
-                borderRadius: 7,
-                fontSize: 13,
-                color: "var(--text)",
-              }}
-            >
-              <span style={{ color: "#3b82f6" }}>●</span>
-              <span style={{ fontWeight: 600 }}>{s.day}</span>
-              <span style={{ color: "var(--text3)" }}>·</span>
-              {s.time}
-            </div>
-          ))}
-        </div>
-        <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 10, lineHeight: 1.55 }}>
-          Students vote on each generated date/time in that range. After votes, use <strong>Finalize time</strong> to pick the winning slot and set one-time or recurring meetings.
-        </div>
+        )}
       </div>
 
-      <div style={{ padding: 12, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12.5, color: "var(--text3)", lineHeight: 1.6 }}>
-        💡 Same model as Type 3: you define <strong style={{ color: "var(--text2)" }}>day of week + time</strong> rows, not one-off calendar dates. The app lists every matching occurrence in your range as a poll option.
-      </div>
-
-      <div style={{ display: "flex", gap: 8, justifyContent: "space-between" }}>
-        <Btn variant="outline" onClick={() => setStep(1)}>
-          ← Back
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: "auto", paddingTop: 8 }}>
+        <Btn variant="outline" onClick={onClose}>
+          Cancel
         </Btn>
-        <div style={{ display: "flex", gap: 8 }}>
-          <Btn variant="red" onClick={handleCreate} style={{ opacity: voterList.length ? 1 : 0.5 }} disabled={!voterList.length}>
-            Create &amp; publish
-          </Btn>
-        </div>
+        <Btn variant="red" onClick={handleCreate} style={{ opacity: step1Ok ? 1 : 0.5 }} disabled={!step1Ok}>
+          Create &amp; publish
+        </Btn>
       </div>
     </div>
   );
@@ -546,7 +457,7 @@ function Type3Form({ onClose, onSave }) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: 560 }}>
       <div>
         <label className="mc-label">Title *</label>
         <input className="mc-input" placeholder="e.g. Office Hours — COMP 307" value={form.title} onChange={e => setF("title", e.target.value)} />
@@ -603,7 +514,7 @@ function Type3Form({ onClose, onSave }) {
         💡 These slots repeat every week for <strong style={{ color: "var(--text2)" }}>{form.weeks || "N"} weeks</strong> and are <strong style={{ color: "var(--text2)" }}>immediately public</strong> — any student can reserve them directly.
       </div>
 
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: "auto", paddingTop: 8 }}>
         <Btn variant="outline" onClick={onClose}>Cancel</Btn>
         <Btn variant="red" onClick={handleSave} style={{ opacity: isValid ? 1 : 0.5 }} disabled={!isValid}>
           Create office hours

@@ -11,6 +11,7 @@ import Navbar from "../components/Navbar";
 import Btn from "../components/Btn";
 import Card from "../components/Card";
 import CalendarExportBlock from "../components/CalendarExportBlock";
+import TopToast from "../components/TopToast";
 import { buildOwnerSlotsIcs, downloadIcsFile } from "../utils/calendarExport";
 import SearchInput from "../components/SearchInput";
 import SlotCard from "../features/owner/SlotCard";
@@ -23,6 +24,7 @@ import {
   createSlot,
   getOwnerSlots,
   getOwnerRequests,
+  getStudentGroupPolls,
   finalizeGroupMeeting,
   deleteSlotSeries as apiDeleteSlotSeries,
 } from "../services/api";
@@ -56,11 +58,12 @@ export default function OwnerDashboard() {
   const [deleteSlotId, setDeleteSlotId] = useState(null);
   const [copiedToken, setCopiedToken] = useState(null);
   const [finalizeSlot, setFinalizeSlot] = useState(null);
-  const [titleFilter, setTitleFilter] = useState("all");
   const [meetingTypeFilter, setMeetingTypeFilter] = useState("all");
   const [expandedRecurringGroups, setExpandedRecurringGroups] = useState({});
   const [createdGroupLink, setCreatedGroupLink] = useState(null);
   const [editGroupPollSlot, setEditGroupPollSlot] = useState(null);
+  const [invitedPolls, setInvitedPolls] = useState([]);
+  const [toast, setToast] = useState(null);
   const [exportBookedSlotsOnly, setExportBookedSlotsOnly] = useState(
     () => localStorage.getItem("mcbook-owner-export-booked-only") === "1",
   );
@@ -73,6 +76,7 @@ export default function OwnerDashboard() {
   useEffect(() => {
     loadSlots();
     loadRequests();
+    loadInvitedGroupPolls();
   }, []);
 
   async function loadSlots() {
@@ -133,9 +137,9 @@ export default function OwnerDashboard() {
     } catch (err) {
       console.error('Failed to load slots:', err);
       if (String(err.message).includes("Owner access required")) {
-        alert('Owner access required. Please log in with an @mcgill.ca account.');
+        setToast({ type: "error", message: "Owner access required. Please log in with an @mcgill.ca account." });
       } else {
-        alert('Failed to load slots. Please try again.');
+        setToast({ type: "error", message: "Failed to load slots. Please try again." });
       }
       return null;
     }
@@ -175,19 +179,30 @@ export default function OwnerDashboard() {
     } catch (err) {
       console.error('Failed to load requests:', err);
       if (String(err.message).includes("Owner access required")) {
-        alert('Owner access required. Please log in with an @mcgill.ca account.');
+        setToast({ type: "error", message: "Owner access required. Please log in with an @mcgill.ca account." });
       }
+    }
+  }
+
+  async function loadInvitedGroupPolls() {
+    try {
+      const data = await getStudentGroupPolls();
+      setInvitedPolls(Array.isArray(data) ? data : []);
+    } catch (err) {
+      // Keep owner dashboard usable even if this endpoint is unavailable.
+      setInvitedPolls([]);
     }
   }
 
   function handleOwnerExportCalendar() {
     const ics = buildOwnerSlotsIcs(slots, { bookedOnly: exportBookedSlotsOnly });
     if (!ics) {
-      alert(
-        exportBookedSlotsOnly
+      setToast({
+        type: "info",
+        message: exportBookedSlotsOnly
           ? "No booked slots with set times to export."
           : "No slots with set times to export. Finalize group polls or create timed slots first.",
-      );
+      });
       return;
     }
     downloadIcsFile("mcbook-my-slots.ics", ics);
@@ -233,10 +248,20 @@ export default function OwnerDashboard() {
   async function deleteSlot(id) {
     //we are making the function async, cleaner error handling
     const slot = slots.find(s => s.id === id);
-    //here we are basically notifying users
-    slot.bookings.forEach(b => {
-      window.open(`mailto:${b.email}?subject=Booking Cancelled: ${encodeURIComponent(slot.title)}&body=Hi ${b.user.split(" ")[0]},%0A%0AYour booking for "${slot.title}" has been cancelled.%0A%0AApologies for any inconvenience.`);
-    });
+    const openDeleteMail = (emails, title, location, whenLabel) => {
+      const unique = [...new Set((emails || []).map((e) => String(e || "").trim().toLowerCase()).filter(Boolean))];
+      if (unique.length === 0) return;
+      const subject = encodeURIComponent(`Cancelled: ${title || "Group meeting"}`);
+      const body = encodeURIComponent(
+        `Hi,\n\nThe meeting has been cancelled.\n\nWhen: ${whenLabel || "TBD"}\nWhere: ${location || "TBD"}\n\nPlease ignore previous scheduling messages.\n`
+      );
+      window.open(`mailto:${unique.join(",")}?subject=${subject}&body=${body}`);
+    };
+
+    const fallbackEmails = [
+      ...(slot?.bookings || []).map((b) => b.email),
+      ...(slot?.group_invite_emails || []),
+    ];
 
     const oldSlots = slots;
     setSlots(prev => prev.filter(s => s.id !== id));
@@ -253,6 +278,13 @@ export default function OwnerDashboard() {
       if (!res.ok) {
         throw new Error("Failed to delete slot");
       }
+      const payload = await res.json().catch(() => ({}));
+      openDeleteMail(
+        payload?.notify_emails?.length ? payload.notify_emails : fallbackEmails,
+        slot?.title,
+        slot?.location,
+        `${slot?.date || ""} · ${slot?.time || ""}`.trim(),
+      );
     } catch (err) {
       console.error("Error deleting slot:", err);
       setSlots(oldSlots); // restore on failure
@@ -263,7 +295,7 @@ export default function OwnerDashboard() {
 
   async function deleteRecurringGroup(recurringSlots, label) {
     if (recurringSlots.length === 0) {
-      alert(`No recurring slots found for "${label}".`);
+      setToast({ type: "info", message: `No recurring slots found for "${label}".` });
       return;
     }
 
@@ -294,13 +326,26 @@ export default function OwnerDashboard() {
     }
 
     try {
+      const notifyEmailSet = new Set();
       for (const seed of seriesSeeds) {
-        await apiDeleteSlotSeries(seed.id);
+        const result = await apiDeleteSlotSeries(seed.id);
+        for (const email of result?.notify_emails || []) {
+          const cleaned = String(email || "").trim().toLowerCase();
+          if (cleaned) notifyEmailSet.add(cleaned);
+        }
+      }
+      if (notifyEmailSet.size > 0) {
+        const to = Array.from(notifyEmailSet).join(",");
+        const sub = encodeURIComponent(`Cancelled recurring meetings: ${label}`);
+        const body = encodeURIComponent(
+          `Hi,\n\nThe recurring meeting series "${label}" has been cancelled.\n\nPlease ignore prior scheduling emails.\n`
+        );
+        window.open(`mailto:${to}?subject=${sub}&body=${body}`);
       }
       await loadSlots();
     } catch (err) {
       console.error("Error deleting recurring class series:", err);
-      alert("Failed to delete recurring class series: " + err.message);
+      setToast({ type: "error", message: `Failed to delete recurring class series: ${err.message}` });
     }
   }
 
@@ -357,9 +402,9 @@ export default function OwnerDashboard() {
     } catch (err) {
       console.error("Error updating request:", err);
       if (String(err.message).includes("Owner access required")) {
-        alert('Owner access required. Please log in with an @mcgill.ca account.');
+        setToast({ type: "error", message: "Owner access required. Please log in with an @mcgill.ca account." });
       } else {
-        alert(`Failed to update request: ${err.message}`);
+        setToast({ type: "error", message: `Failed to update request: ${err.message}` });
       }
       setRequests(previousRequests);
     }
@@ -442,7 +487,7 @@ export default function OwnerDashboard() {
       }
     } catch (err) {
       console.error("Error creating slot:", err);
-      alert("Failed to create slot: " + err.message);
+      setToast({ type: "error", message: `Failed to create slot: ${err.message}` });
     }
   }
 
@@ -465,21 +510,13 @@ export default function OwnerDashboard() {
       }
     } catch (err) {
       console.error('Error finalizing group meeting:', err);
-      alert('Failed to finalize meeting: ' + err.message);
+      setToast({ type: "error", message: `Failed to finalize meeting: ${err.message}` });
     }
   }
 
   const pendingCount = requests.filter(r => r.status === "pending").length;
   const getConfirmedBookingCount = (slot) =>
     (slot.bookings || []).filter((b) => (b.status || "confirmed") === "confirmed").length;
-  const slotTitleOptions = Array.from(
-    new Set(
-      slots
-        .filter((s) => s.type !== "request")
-        .map((s) => s.title)
-        .filter(Boolean)
-    )
-  ).sort((a, b) => a.localeCompare(b));
   const meetingTypeOptions = [
     { key: "all", label: "All Types" },
     { key: "single_office_hours", label: "Single Office Hours" },
@@ -492,10 +529,6 @@ export default function OwnerDashboard() {
     if (tab === "booked_slots" && confirmedCount === 0) return false;
     if (tab === "free_slots" && confirmedCount > 0) return false;
     if (tab === "requests") return false;
-
-    if (titleFilter !== "all" && s.title !== titleFilter) {
-      return false;
-    }
 
     if (meetingTypeFilter === "recurring" && !s.is_recurring) return false;
     if (meetingTypeFilter === "group" && s.type !== "group") return false;
@@ -535,6 +568,11 @@ export default function OwnerDashboard() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <TopToast
+        message={toast?.message}
+        type={toast?.type}
+        onClose={() => setToast(null)}
+      />
 
       <Navbar
         theme={theme}
@@ -564,9 +602,6 @@ export default function OwnerDashboard() {
           <h1 style={{ fontSize: "1.75rem", fontWeight: 800, letterSpacing: "-0.03em", color: "var(--text)", marginBottom: 4 }}>
             Owner Dashboard
           </h1>
-          <p style={{ fontSize: 13.5, color: "var(--text3)" }}>
-            {slots.length} slots &nbsp;·&nbsp; {slots.reduce((a, s) => a + getConfirmedBookingCount(s), 0)} total bookings &nbsp;·&nbsp; {pendingCount} pending requests
-          </p>
         </div>
 
         {createdGroupLink && (
@@ -610,6 +645,43 @@ export default function OwnerDashboard() {
           </div>
         )}
 
+        {invitedPolls.length > 0 && (
+          <Card style={{ marginBottom: 18 }}>
+            <SectionTitle>Group polls where you are invited</SectionTitle>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {invitedPolls.slice(0, 4).map((poll) => (
+                <div
+                  key={poll.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 12px",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    background: "var(--surface2)",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)" }}>{poll.title}</div>
+                    <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                      {poll.has_voted ? "Vote saved - waiting for organizer" : "Needs your vote"}
+                    </div>
+                  </div>
+                  <Btn
+                    variant={poll.has_voted ? "outline" : "red"}
+                    onClick={() => navigate(`/vote/${poll.invite_token}`)}
+                    style={{ padding: "6px 10px" }}
+                  >
+                    {poll.has_voted ? "Review vote" : "Vote now"}
+                  </Btn>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
         {/* Tabs */}
         <div style={{ display: "flex", gap: 2, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 9, padding: 3, marginBottom: 20, width: isMobile ? "100%" : "fit-content", overflowX: "auto", boxShadow: "var(--shadow-sm)" }}>
           {TABS.map(t => (
@@ -628,29 +700,6 @@ export default function OwnerDashboard() {
             </button>
           ))}
         </div>
-
-        {tab !== "requests" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text3)" }}>Class:</span>
-            <Btn
-              variant={titleFilter === "all" ? "red" : "outline"}
-              onClick={() => setTitleFilter("all")}
-              style={{ padding: "6px 10px" }}
-            >
-              All
-            </Btn>
-            {slotTitleOptions.map((title) => (
-              <Btn
-                key={title}
-                variant={titleFilter === title ? "red" : "outline"}
-                onClick={() => setTitleFilter(title)}
-                style={{ padding: "6px 10px" }}
-              >
-                {title}
-              </Btn>
-            ))}
-          </div>
-        )}
 
         {tab !== "requests" && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
@@ -686,6 +735,7 @@ export default function OwnerDashboard() {
               showBookedOnlyOption
               bookedOnly={exportBookedSlotsOnly}
               onBookedOnlyChange={handleExportBookedOnlyChange}
+              filterLabel="When checked, export only slots that have at least one confirmed booking."
             />
             <Btn variant="outline" onClick={() => setTab("requests")} style={{ width: "100%", justifyContent: "center", marginTop: 10 }}>
               View requests {pendingCount > 0 && `(${pendingCount})`}
@@ -801,6 +851,7 @@ export default function OwnerDashboard() {
                     showBookedOnlyOption
                     bookedOnly={exportBookedSlotsOnly}
                     onBookedOnlyChange={handleExportBookedOnlyChange}
+                    filterLabel="When checked, export only slots that have at least one confirmed booking."
                   />
                   <Btn variant="outline" onClick={() => setTab("requests")} style={{ width: "100%", justifyContent: "center", marginTop: 10 }}>
                     View requests {pendingCount > 0 && `(${pendingCount})`}
