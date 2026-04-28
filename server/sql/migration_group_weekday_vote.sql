@@ -1,7 +1,7 @@
 -- Type 2: students vote on weekday+time alternatives (not every date in a range).
 -- Optional season window on the group slot; vote options may use weekday only (option_date NULL).
 
-USE comp307_booking;
+USE `comp-307-db`;
 
 ALTER TABLE slots
   ADD COLUMN group_season_start DATE NULL DEFAULT NULL AFTER group_finalized,

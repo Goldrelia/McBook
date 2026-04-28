@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { Eye, EyeOff } from "lucide-react";
+import { API_URL } from "../services/api";
 
 const DEFAULT_ICON_SIZE = 16;
 const MCGILL_DOMAINS = ["@mcgill.ca", "@mail.mcgill.ca"];
@@ -53,7 +54,7 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3000/api/auth/login', {
+      const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),

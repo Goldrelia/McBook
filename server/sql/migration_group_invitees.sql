@@ -1,5 +1,5 @@
 -- Run once on existing DBs: adds group meeting invitee list and finalized flag
-USE comp307_booking;
+USE `comp-307-db`;
 
 ALTER TABLE slots
   ADD COLUMN group_finalized TINYINT(1) NOT NULL DEFAULT 0

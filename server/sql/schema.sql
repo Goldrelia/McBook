@@ -4,8 +4,8 @@
 -- Aurelia Bouliane - 261118164
 
 -- MySQL Schema for McBook Competition Booking App
-CREATE DATABASE IF NOT EXISTS comp307_booking;
-USE comp307_booking;
+CREATE DATABASE IF NOT EXISTS `comp-307-db`;
+USE `comp-307-db`;
 
 -- USERS
 -- role: 'owner' (@mcgill.ca) or 'student' (@mail.mcgill.ca)

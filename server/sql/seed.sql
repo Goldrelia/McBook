@@ -4,7 +4,7 @@
 -- Aurelia Bouliane - 261118164
 -- Test data for development and demo
 
-USE comp307_booking;
+USE `comp-307-db`;
 
 -- Clear existing data (in reverse order of foreign keys)
 SET FOREIGN_KEY_CHECKS = 0;

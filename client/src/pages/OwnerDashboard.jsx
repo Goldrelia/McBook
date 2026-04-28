@@ -19,7 +19,14 @@ import { CreateSlotModal, FinalizeGroupModal } from "../features/owner/CreateSlo
 import EditGroupPollModal from "../features/owner/EditGroupPollModal";
 import { MOCK_SLOTS, MOCK_REQUESTS } from "../features/owner/mockData";
 import useWindowWidth from "../hooks/useWindowWidth";
-import { createSlot, getOwnerSlots, getOwnerRequests, finalizeGroupMeeting, deleteSlotSeries as apiDeleteSlotSeries } from "../services/api";
+import {
+  API_URL,
+  createSlot,
+  getOwnerSlots,
+  getOwnerRequests,
+  finalizeGroupMeeting,
+  deleteSlotSeries as apiDeleteSlotSeries,
+} from "../services/api";
 
 const TABS = [
   { key: "all_slots", label: "All Slots" },
@@ -202,7 +209,7 @@ export default function OwnerDashboard() {
     ));
 
     // Send to backend
-    fetch(`http://localhost:3000/api/slots/${id}`, {
+    fetch(`${API_URL}/slots/${id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -237,7 +244,7 @@ export default function OwnerDashboard() {
     setDeleteSlotId(null);
 
     try {
-      const res = await fetch(`http://localhost:3000/api/slots/${id}`, {
+      const res = await fetch(`${API_URL}/slots/${id}`, {
         method: "DELETE",
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('mcbook-token')}`
@@ -311,7 +318,7 @@ export default function OwnerDashboard() {
     setRequests(prev => prev.map(r => r.id === id ? { ...r, status: action } : r));
 
     try {
-      const res = await fetch(`http://localhost:3000/api/meeting-requests/${id}`, {
+      const res = await fetch(`${API_URL}/meeting-requests/${id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

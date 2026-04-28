@@ -5,6 +5,8 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const fs = require('fs');
+const path = require('path');
 const pool = require('./config/db');
 const app = express();
 const port = process.env.PORT || 3000;
@@ -62,6 +64,20 @@ app.post('/api/auth/login', async (req, res) => {
 
 // Mount all API routes
 app.use('/api', apiRoutes);
+
+// Serve built frontend in deployment (course server expects /home/cs307-user/app/index.html).
+const staticCandidates = [
+  process.env.STATIC_DIR,
+  '/home/cs307-user/app',
+  path.resolve(__dirname, '../../client/dist'),
+].filter(Boolean);
+const staticDir = staticCandidates.find((dir) => fs.existsSync(path.join(dir, 'index.html')));
+if (staticDir) {
+  app.use(express.static(staticDir));
+  app.get(/^\/(?!api).*/, (req, res) => {
+    res.sendFile(path.join(staticDir, 'index.html'));
+  });
+}
 
 // Start the server
 app.listen(port, () => {
