@@ -488,9 +488,6 @@ function Type2Form({ onClose, onSave }) {
           ← Back
         </Btn>
         <div style={{ display: "flex", gap: 8 }}>
-          <Btn variant="outline" onClick={onClose}>
-            Save for later
-          </Btn>
           <Btn variant="red" onClick={handleCreate} style={{ opacity: voterList.length ? 1 : 0.5 }} disabled={!voterList.length}>
             Create &amp; publish
           </Btn>
