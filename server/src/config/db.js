@@ -1,5 +1,6 @@
 // Author:
 // Hooman Azari - 261055604
+// Aurelia Bouliane - 261118164
 
 const mysql = require('mysql2/promise');
 require('dotenv').config();

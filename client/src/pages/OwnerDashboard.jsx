@@ -17,7 +17,6 @@ import SlotCard from "../features/owner/SlotCard";
 import RequestCard from "../features/owner/RequestCard";
 import { CreateSlotModal, FinalizeGroupModal } from "../features/owner/CreateSlotModal";
 import EditGroupPollModal from "../features/owner/EditGroupPollModal";
-import { MOCK_SLOTS, MOCK_REQUESTS } from "../features/owner/mockData";
 import useWindowWidth from "../hooks/useWindowWidth";
 import {
   API_URL,

@@ -1,3 +1,5 @@
+-- Author:
+-- Hooman Azari - 261055604
 -- Type 2: students vote on weekday+time alternatives (not every date in a range).
 -- Optional season window on the group slot; vote options may use weekday only (option_date NULL).
 
