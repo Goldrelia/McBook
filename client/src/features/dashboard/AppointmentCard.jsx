@@ -111,6 +111,22 @@ export default function AppointmentCard({ appt, delay, onDelete, confirmingDelet
                 </span>
               </div>
             )}
+            {confirmingDelete ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 12, color: "var(--text3)" }}>Leave this group meeting?</span>
+                <Btn variant="red" onClick={onConfirmDelete} style={{ padding: "4px 10px", fontSize: 12 }}>Yes</Btn>
+                <Btn variant="outline" onClick={onCancelDelete} style={{ padding: "4px 10px", fontSize: 12 }}>No</Btn>
+              </div>
+            ) : (
+              <button
+                onClick={onDelete}
+                style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--text2)", fontSize: 12, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", transition: "all 0.15s" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(232,25,44,0.4)"; e.currentTarget.style.color = "var(--red)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text2)"; }}
+              >
+                <Trash2 size={ICON_SIZE} /> Cancel
+              </button>
+            )}
           </div>
         ) : confirmingDelete ? (
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

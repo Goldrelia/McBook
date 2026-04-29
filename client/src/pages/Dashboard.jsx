@@ -39,8 +39,26 @@ export default function Dashboard() {
   }, [theme]);
 
   useEffect(() => {
+    const role = localStorage.getItem("mcbook-role");
+    const email = String(localStorage.getItem("mcbook-email") || "").toLowerCase();
+    let tokenRole = "";
+    try {
+      const token = localStorage.getItem("mcbook-token");
+      if (token && token.split(".").length >= 2) {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        tokenRole = String(payload?.role || "");
+      }
+    } catch (_) {
+      tokenRole = "";
+    }
+    const ownerSession =
+      role === "owner" || tokenRole === "owner" || email.endsWith("@mcgill.ca");
+    if (ownerSession) {
+      navigate("/owner/dashboard", { replace: true });
+      return;
+    }
     loadBookings();
-  }, []);
+  }, [navigate]);
 
   /** Legacy: one DB booking for a finalized recurring group slot — show one card per week. */
   function expandRecurringGroupBookings(rows) {
@@ -204,7 +222,48 @@ export default function Dashboard() {
         location: booking.location || "TBD",
       }));
 
-      const transformedGroupPolls = (groupPolls || []).map((p) => ({
+      // If a group poll is already finalized into a confirmed booking, hide the old
+      // "awaiting owner" poll card to avoid duplicate entries.
+      const confirmedGroupSlotIds = new Set(
+        transformedBookings
+          .filter((b) => b.type === "group" && (b.status || "confirmed") === "confirmed")
+          .map((b) => String(b.slot_id || ""))
+          .filter(Boolean),
+      );
+      const confirmedGroupInviteTokens = new Set(
+        transformedBookings
+          .filter((b) => b.type === "group" && (b.status || "confirmed") === "confirmed")
+          .map((b) => String(b.invite_token || ""))
+          .filter(Boolean),
+      );
+      const confirmedGroupIdentityKeys = new Set(
+        transformedBookings
+          .filter((b) => b.type === "group" && (b.status || "confirmed") === "confirmed")
+          .map((b) =>
+            [
+              String(b.title || "").trim().toLowerCase(),
+              String(b.owner_email || "").trim().toLowerCase(),
+              String(b.location || "tbd").trim().toLowerCase(),
+            ].join("|"),
+          ),
+      );
+
+      const transformedGroupPolls = (groupPolls || [])
+        .filter(
+          (p) => {
+            if (p.group_finalized) return false;
+            if (confirmedGroupSlotIds.has(String(p.id || ""))) return false;
+            if (confirmedGroupInviteTokens.has(String(p.invite_token || ""))) return false;
+            const identityKey = [
+              String(p.title || "").trim().toLowerCase(),
+              String(p.owner_email || "").trim().toLowerCase(),
+              String(p.location || "tbd").trim().toLowerCase(),
+            ].join("|");
+            if (confirmedGroupIdentityKeys.has(identityKey)) return false;
+            return true;
+          },
+        )
+        .map((p) => ({
         id: `gpoll-${p.id}`,
         slot_id: p.id,
         type: "group",

@@ -9,7 +9,7 @@ Code worked on: Frontend architecture/components/pages, owner/student dashboards
 
 Name: Hooman Azari
 Student ID: 261055604
-Code worked on: Backend database configuration/schema work, slot/meeting business logic, API integration support, and shared frontend feature work.
+Code worked on: Frontend architecture/components/pages, Owner/student dashboards, Backend database configuration/schema work, slot/meeting business logic, API integration support, shared frontend feature work, and invited owner/student parity flows for group meetings (dashboard visibility/filtering, voting access, finalized meeting display, and cancellation behavior/email parity).
 
 Name: Derek Long
 Student ID: 261161918

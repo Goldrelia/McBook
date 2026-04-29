@@ -716,11 +716,14 @@ async function getOwnerSlots(req, res) {
 }
 
 /**
- * List group meeting polls the student is invited to (not finalized, vote phase)
+ * List group meetings the user is invited to.
+ * - pending polls appear only after owner publishes (status = active)
+ * - finalized meetings remain visible for invitees
  * GET /api/student/group-polls
  */
 async function getStudentGroupPolls(req, res) {
   const user_id = req.user.userId;
+  const role = req.user.role;
 
   try {
     const [me] = await pool.execute("SELECT email FROM users WHERE id = ?", [
@@ -730,17 +733,53 @@ async function getStudentGroupPolls(req, res) {
       return res.json([]);
     }
     const email = normalizeEmail(me[0].email);
-    const [rows] = await pool.execute(
-      `SELECT s.id, s.title, s.type, s.status, s.start_time, s.end_time, s.location,
-              s.invite_token, s.group_finalized, u.email AS owner_email,
-              (SELECT COUNT(DISTINCT ar.id) FROM availability_responses ar
-                 WHERE ar.slot_id = s.id AND ar.user_id = ?) AS response_count
-       FROM group_meeting_invitees g
-       JOIN slots s ON s.id = g.slot_id
-       JOIN users u ON s.owner_id = u.id
-       WHERE g.email = ? AND s.type = 'group' AND s.group_finalized = 0 AND s.status = 'active'`,
-      [user_id, email],
-    );
+    let rows = [];
+    if (role === "owner") {
+      // Invited owners should still see finalized meetings in their owner dashboard.
+      const [ownerRows] = await pool.execute(
+        `SELECT s.id, s.title, s.type, s.status, s.start_time, s.end_time, s.location,
+                s.invite_token, s.group_finalized, u.email AS owner_email,
+                (SELECT b.id FROM bookings b
+                   WHERE b.slot_id = s.id AND b.user_id = ? AND b.status = 'confirmed'
+                   ORDER BY b.booked_at DESC LIMIT 1) AS my_confirmed_booking_id,
+                (SELECT COUNT(DISTINCT ar.id) FROM availability_responses ar
+                   WHERE ar.slot_id = s.id AND ar.user_id = ?) AS response_count
+         FROM group_meeting_invitees g
+         JOIN slots s ON s.id = g.slot_id
+         JOIN users u ON s.owner_id = u.id
+         WHERE g.email = ? AND s.type = 'group'
+           AND (s.group_finalized = 1 OR s.status = 'active')
+         ORDER BY s.group_finalized ASC, s.start_time ASC`,
+        [user_id, user_id, email],
+      );
+      rows = ownerRows || [];
+    } else {
+      // Students should not see duplicate pending poll once confirmed booking exists.
+      const [studentRows] = await pool.execute(
+        `SELECT s.id, s.title, s.type, s.status, s.start_time, s.end_time, s.location,
+                s.invite_token, s.group_finalized, u.email AS owner_email,
+                (SELECT b.id FROM bookings b
+                   WHERE b.slot_id = s.id AND b.user_id = ? AND b.status = 'confirmed'
+                   ORDER BY b.booked_at DESC LIMIT 1) AS my_confirmed_booking_id,
+                (SELECT COUNT(DISTINCT ar.id) FROM availability_responses ar
+                   WHERE ar.slot_id = s.id AND ar.user_id = ?) AS response_count
+         FROM group_meeting_invitees g
+         JOIN slots s ON s.id = g.slot_id
+         JOIN users u ON s.owner_id = u.id
+         WHERE g.email = ? AND s.type = 'group'
+           AND (s.group_finalized = 1 OR s.status = 'active')
+           AND NOT EXISTS (
+             SELECT 1
+             FROM bookings b
+             WHERE b.slot_id = s.id
+               AND b.user_id = ?
+               AND b.status = 'confirmed'
+           )
+         ORDER BY s.group_finalized ASC, s.start_time ASC`,
+        [user_id, user_id, email, user_id],
+      );
+      rows = studentRows || [];
+    }
 
     res.json(
       (rows || []).map((r) => ({
@@ -752,6 +791,66 @@ async function getStudentGroupPolls(req, res) {
   } catch (err) {
     console.error("Error fetching group polls for student:", err);
     res.status(500).json({ error: "Failed to load group meeting polls" });
+  }
+}
+
+/**
+ * Leave an invited group meeting poll/finalized meeting.
+ * DELETE /api/student/group-polls/:slotId
+ */
+async function leaveStudentGroupPoll(req, res) {
+  const user_id = req.user.userId;
+  const email = normalizeEmail(req.user.email);
+  const { slotId } = req.params;
+
+  try {
+    const [rows] = await pool.execute(
+      `SELECT s.id, s.title, s.owner_id, u.email AS owner_email
+       FROM slots s
+       JOIN users u ON u.id = s.owner_id
+       WHERE s.id = ? AND s.type = 'group'`,
+      [slotId],
+    );
+    if (!rows.length) {
+      return res.status(404).json({ error: "Group meeting not found" });
+    }
+    const slot = rows[0];
+    if (String(slot.owner_id) === String(user_id)) {
+      return res.status(400).json({ error: "Organizer cannot leave their own meeting." });
+    }
+
+    const [inv] = await pool.execute(
+      "SELECT id FROM group_meeting_invitees WHERE slot_id = ? AND email = ?",
+      [slotId, email],
+    );
+    if (!inv.length) {
+      return res.status(404).json({ error: "You are not invited to this group meeting." });
+    }
+
+    await pool.execute(
+      "DELETE FROM group_meeting_invitees WHERE slot_id = ? AND email = ?",
+      [slotId, email],
+    );
+    await pool.execute(
+      "DELETE FROM availability_responses WHERE slot_id = ? AND user_id = ?",
+      [slotId, user_id],
+    );
+    await pool.execute(
+      `UPDATE bookings
+       SET status = 'cancelled'
+       WHERE slot_id = ? AND user_id = ? AND status = 'confirmed'`,
+      [slotId, user_id],
+    );
+
+    return res.json({
+      success: true,
+      slot_id: slotId,
+      title: slot.title,
+      owner_email: slot.owner_email,
+    });
+  } catch (err) {
+    console.error("Error leaving group poll:", err);
+    return res.status(500).json({ error: "Failed to leave group meeting" });
   }
 }
 
@@ -1308,6 +1407,11 @@ async function getSlotByInvite(req, res) {
     let is_invited = true;
 
     if (slot.type === "group") {
+      if (!isGroupFinalized(slot) && slot.status !== "active") {
+        return res.status(403).json({
+          error: "This group poll is not published yet. Ask the organizer to make it active.",
+        });
+      }
       const [invRows] = await pool.execute(
         "SELECT email FROM group_meeting_invitees WHERE slot_id = ?",
         [slot.id],
@@ -1566,6 +1670,7 @@ module.exports = {
   createSlot,
   getOwnerSlots,
   getStudentGroupPolls,
+  leaveStudentGroupPoll,
   getSlotById,
   getSlotOptions,
   addGroupSlotOptions,

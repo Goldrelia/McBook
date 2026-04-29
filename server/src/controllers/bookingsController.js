@@ -22,7 +22,7 @@ async function getUserBookings(req, res) {
        JOIN slots s ON b.slot_id = s.id
        JOIN users u ON s.owner_id = u.id
        WHERE b.user_id = ? AND b.status = 'confirmed'
-         AND (s.status = 'active' OR (s.type = 'group' AND s.group_finalized = 1))
+         AND s.status = 'active'
        ORDER BY s.start_time ASC`,
       [user_id]
     );

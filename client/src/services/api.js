@@ -96,6 +96,8 @@ export const getAllOwners = () => apiCall('/owners');
 
 /** Group meeting polls you are invited to (not yet finalized) */
 export const getStudentGroupPolls = () => apiCall('/student/group-polls');
+export const leaveStudentGroupPoll = (slotId) =>
+  apiCall(`/student/group-polls/${slotId}`, { method: 'DELETE' });
 
 export const getSlotByInvite = (token) => 
   apiCall(`/invite/${token}`);

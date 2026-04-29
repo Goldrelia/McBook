@@ -30,10 +30,25 @@ export default function VotePage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const ownerView = new URLSearchParams(window.location.search).get("ownerView") === "1";
 
-  const userEmail = localStorage.getItem("mcbook-email") || "";
-  const userRole = localStorage.getItem("mcbook-role") || "";
-  const isOwner = userRole === "owner";
+  const userEmail = String(localStorage.getItem("mcbook-email") || "").toLowerCase();
+  const storedRole = localStorage.getItem("mcbook-role") || "";
+  let tokenRole = "";
+  try {
+    const token = localStorage.getItem("mcbook-token");
+    if (token && token.split(".").length >= 2) {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      tokenRole = String(payload?.role || "");
+    }
+  } catch (_) {
+    tokenRole = "";
+  }
+  const isOwner =
+    ownerView ||
+    tokenRole === "owner" ||
+    storedRole === "owner" ||
+    userEmail.endsWith("@mcgill.ca");
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);

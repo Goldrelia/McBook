@@ -39,6 +39,11 @@ router.get(
   authenticateToken,
   slotsController.getStudentGroupPolls
 );
+router.delete(
+  '/student/group-polls/:slotId',
+  authenticateToken,
+  slotsController.leaveStudentGroupPoll
+);
 router.get('/invite/:token', optionalAuth, slotsController.getSlotByInvite);
 
 // VOTING (for group meetings)

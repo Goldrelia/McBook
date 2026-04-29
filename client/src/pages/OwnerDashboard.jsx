@@ -16,11 +16,13 @@ import { buildOwnerSlotsIcs, downloadIcsFile } from "../utils/calendarExport";
 import SearchInput from "../components/SearchInput";
 import SlotCard from "../features/owner/SlotCard";
 import RequestCard from "../features/owner/RequestCard";
+import AppointmentCard from "../features/dashboard/AppointmentCard";
 import { CreateSlotModal, FinalizeGroupModal } from "../features/owner/CreateSlotModal";
 import EditGroupPollModal from "../features/owner/EditGroupPollModal";
 import useWindowWidth from "../hooks/useWindowWidth";
 import {
   API_URL,
+  cancelBooking as apiCancelBooking,
   createSlot,
   getOwnerSlots,
   getOwnerRequests,
@@ -58,6 +60,7 @@ export default function OwnerDashboard() {
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [deleteSlotId, setDeleteSlotId] = useState(null);
+  const [deleteInvitedApptId, setDeleteInvitedApptId] = useState(null);
   const [deleteRecurringGroupTitle, setDeleteRecurringGroupTitle] = useState(null);
   const [copiedToken, setCopiedToken] = useState(null);
   const [finalizeSlot, setFinalizeSlot] = useState(null);
@@ -166,6 +169,17 @@ export default function OwnerDashboard() {
       return `${hours}${minuteStr}${ampm}`;
     };
     return `${formatTimeOnly(start)} – ${formatTimeOnly(end)}`;
+  }
+
+  function formatLongDate(datetimeStr) {
+    const d = new Date(datetimeStr);
+    if (Number.isNaN(d.getTime())) return "TBD";
+    return d.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   }
 
   async function loadRequests() {
@@ -433,6 +447,36 @@ export default function OwnerDashboard() {
     }
   }
 
+  async function cancelInvitedAppointment(appt) {
+    const bookingId = appt?.bookingIdForApi;
+    if (!bookingId) {
+      setToast({ type: "error", message: "Cannot cancel this meeting right now." });
+      return;
+    }
+
+    if (appt.owner_email) {
+      const subject = encodeURIComponent(`Booking Cancelled: ${appt.title}`);
+      const body = encodeURIComponent(
+        `Hi,\n\nI cancelled my booking for "${appt.title}" on ${appt.date} at ${appt.time}.\n\nRegards`,
+      );
+      window.open(`mailto:${appt.owner_email}?subject=${subject}&body=${body}`);
+    }
+
+    const previousInvited = invitedPolls;
+    setInvitedPolls((prev) => prev.filter((p) => `invited-finalized-${p.id}` !== appt.id));
+    setDeleteInvitedApptId(null);
+
+    try {
+      await apiCancelBooking(bookingId);
+      await loadInvitedGroupPolls();
+      setToast({ type: "success", message: "Meeting cancelled." });
+    } catch (err) {
+      console.error("Failed to cancel invited appointment:", err);
+      setInvitedPolls(previousInvited);
+      setToast({ type: "error", message: "Failed to cancel meeting." });
+    }
+  }
+
 
   // Transform slot data from modal format to API format
   function transformSlotForAPI(slot) {
@@ -589,6 +633,64 @@ export default function OwnerDashboard() {
     const q = search.toLowerCase();
     return r.user.toLowerCase().includes(q) || r.email.toLowerCase().includes(q);
   });
+  const pendingInvitedPolls = invitedPolls.filter(
+    (p) => !p.group_finalized && p.status === "active",
+  );
+  const finalizedInvitedPolls = invitedPolls.filter(
+    (p) => p.group_finalized && p.status === "active" && p.my_confirmed_booking_id,
+  );
+  const pendingInvitedAppointments = pendingInvitedPolls.map((poll) => ({
+    id: `invited-pending-${poll.id}`,
+    slot_id: poll.id,
+    type: "group",
+    status: "pending",
+    groupPollStatus: poll.has_voted ? "awaiting_owner" : "need_vote",
+    title: poll.title || "Group meeting",
+    date: poll.has_voted ? "Pending owner" : "Needs your vote",
+    time: poll.has_voted
+      ? "Your vote is recorded - time not finalized yet"
+      : "Vote on the times that work for you",
+    location: poll.location || "TBD",
+    owner_email: poll.owner_email || "",
+    invite_token: poll.invite_token,
+    isGroupPoll: true,
+    start_time: poll.start_time,
+  }));
+  const finalizedInvitedAppointments = finalizedInvitedPolls
+    .map((poll) => {
+      const hasValidTime =
+        poll.start_time &&
+        poll.end_time &&
+        !Number.isNaN(new Date(poll.start_time).getTime()) &&
+        !Number.isNaN(new Date(poll.end_time).getTime());
+      return {
+        id: `invited-finalized-${poll.id}`,
+        slot_id: poll.id,
+        type: "group",
+        status: "confirmed",
+        title: poll.title || "Group meeting",
+        date: hasValidTime ? formatLongDate(poll.start_time) : "Finalized",
+        time: hasValidTime ? formatTime(poll.start_time, poll.end_time) : "Time TBD",
+        location: poll.location || "TBD",
+        owner_email: poll.owner_email || "",
+        invite_token: poll.invite_token,
+        start_time: poll.start_time,
+        bookingIdForApi: poll.my_confirmed_booking_id || null,
+        isInvitedFinalized: true,
+      };
+    })
+    .filter((appt) => appt.start_time && !Number.isNaN(new Date(appt.start_time).getTime()))
+    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+  const invitedGroupAppointments = [...pendingInvitedAppointments, ...finalizedInvitedAppointments];
+  const visibleInvitedGroupAppointments =
+    meetingTypeFilter === "all" || meetingTypeFilter === "group"
+      ? invitedGroupAppointments.filter((appt) => {
+          if (tab !== "all_slots") return false;
+          if (!search.trim()) return true;
+          const q = search.toLowerCase();
+          return appt.title.toLowerCase().includes(q) || appt.owner_email.toLowerCase().includes(q);
+        })
+      : [];
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -683,43 +785,6 @@ export default function OwnerDashboard() {
               </Btn>
             </div>
           </div>
-        )}
-
-        {invitedPolls.length > 0 && (
-          <Card style={{ marginBottom: 18 }}>
-            <SectionTitle>Group polls where you are invited</SectionTitle>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {invitedPolls.slice(0, 4).map((poll) => (
-                <div
-                  key={poll.id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "10px 12px",
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                    background: "var(--surface2)",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)" }}>{poll.title}</div>
-                    <div style={{ fontSize: 12, color: "var(--text3)" }}>
-                      {poll.has_voted ? "Vote saved - waiting for organizer" : "Needs your vote"}
-                    </div>
-                  </div>
-                  <Btn
-                    variant={poll.has_voted ? "outline" : "red"}
-                    onClick={() => navigate(`/vote/${poll.invite_token}`)}
-                    style={{ padding: "6px 10px" }}
-                  >
-                    {poll.has_voted ? "Review vote" : "Vote now"}
-                  </Btn>
-                </div>
-              ))}
-            </div>
-          </Card>
         )}
 
         {/* Tabs */}
@@ -887,28 +952,41 @@ export default function OwnerDashboard() {
                     </Card>
                   ))
                 )
-              ) : sortedFilteredSlots.length === 0 ? (
+              ) : (sortedFilteredSlots.length + visibleInvitedGroupAppointments.length) === 0 ? (
                 <Card style={{ textAlign: "center", padding: "40px 24px", color: "var(--text3)", fontSize: 13.5 }}>
                   {search.trim() ? `No slots matching "${search}".` : "No slots yet."}{" "}
                   {!search.trim() && <button onClick={() => setShowCreate(true)} style={{ background: "none", border: "none", color: "var(--red)", fontWeight: 600, cursor: "pointer", fontSize: 13.5, fontFamily: "inherit" }}>Create one →</button>}
                 </Card>
               ) : (
-                sortedFilteredSlots.map((slot, i) => (
-                  <SlotCard
-                    key={slot.id}
-                    slot={slot}
-                    delay={i * 0.05}
-                    onToggle={() => toggleStatus(slot.id)}
-                    onDelete={() => setDeleteSlotId(slot.id)}
-                    confirmingDelete={deleteSlotId === slot.id}
-                    onConfirmDelete={() => deleteSlot(slot.id)}
-                    onCancelDelete={() => setDeleteSlotId(null)}
-                    onCopyLink={() => copyInviteLink(slot.invite_token)}
-                    copied={copiedToken === slot.invite_token}
-                    onFinalize={() => setFinalizeSlot(slot)}
-                    onEditPollOptions={() => setEditGroupPollSlot(slot)}
-                  />
-                ))
+                <>
+                  {sortedFilteredSlots.map((slot, i) => (
+                    <SlotCard
+                      key={slot.id}
+                      slot={slot}
+                      delay={i * 0.05}
+                      onToggle={() => toggleStatus(slot.id)}
+                      onDelete={() => setDeleteSlotId(slot.id)}
+                      confirmingDelete={deleteSlotId === slot.id}
+                      onConfirmDelete={() => deleteSlot(slot.id)}
+                      onCancelDelete={() => setDeleteSlotId(null)}
+                      onCopyLink={() => copyInviteLink(slot.invite_token)}
+                      copied={copiedToken === slot.invite_token}
+                      onFinalize={() => setFinalizeSlot(slot)}
+                      onEditPollOptions={() => setEditGroupPollSlot(slot)}
+                    />
+                  ))}
+                  {visibleInvitedGroupAppointments.map((appt, i) => (
+                    <AppointmentCard
+                      key={appt.id}
+                      appt={appt}
+                      delay={(sortedFilteredSlots.length + i) * 0.05}
+                      onDelete={() => setDeleteInvitedApptId(appt.id)}
+                      confirmingDelete={deleteInvitedApptId === appt.id}
+                      onConfirmDelete={() => cancelInvitedAppointment(appt)}
+                      onCancelDelete={() => setDeleteInvitedApptId(null)}
+                    />
+                  ))}
+                </>
               )}
             </div>
             {!isMobile && (
