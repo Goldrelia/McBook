@@ -1080,7 +1080,16 @@ async function updateRecurringSeriesStatus(req, res) {
       return res.status(400).json({ error: "Slot is not recurring" });
     }
 
+    console.log(`[updateRecurringSeriesStatus] Seed slot:`, {
+      title: seed.title,
+      location: seed.location,
+      type: seed.type,
+      recurrence_weeks: seed.recurrence_weeks,
+      day: seed.start_time,
+    });
+
     // Find all slots in the same recurring series
+    // Don't filter by day/time - match by title and recurrence settings
     const [seriesSlots] = await pool.execute(
       `SELECT id
        FROM slots
@@ -1088,22 +1097,16 @@ async function updateRecurringSeriesStatus(req, res) {
          AND is_recurring = 1
          AND type = ?
          AND title = ?
-         AND location = ?
-         AND recurrence_weeks = ?
-         AND DAYOFWEEK(start_time) = DAYOFWEEK(?)
-         AND TIME(start_time) = TIME(?)
-         AND TIME(end_time) = TIME(?)`,
+         AND recurrence_weeks = ?`,
       [
         owner_id,
         seed.type,
         seed.title,
-        seed.location,
         seed.recurrence_weeks,
-        seed.start_time,
-        seed.start_time,
-        seed.end_time,
       ]
     );
+
+    console.log(`[updateRecurringSeriesStatus] Found ${seriesSlots.length} slots in series`);
 
     if (seriesSlots.length === 0) {
       return res.status(404).json({ error: "No recurring series found" });
@@ -1117,6 +1120,8 @@ async function updateRecurringSeriesStatus(req, res) {
       `UPDATE slots SET status = ? WHERE id IN (${placeholders})`,
       [status, ...slotIds]
     );
+
+    console.log(`[updateRecurringSeriesStatus] Updated ${slotIds.length} slots to ${status}`);
 
     res.json({ 
       message: `Recurring series ${status === 'active' ? 'activated' : 'made private'}`, 

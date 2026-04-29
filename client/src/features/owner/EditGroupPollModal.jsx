@@ -18,6 +18,7 @@ export default function EditGroupPollModal({ slot, onClose, onSaved }) {
   const [newRow, setNewRow] = useState({ day: "Monday", time_start: "", time_end: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  const [confirmRemove, setConfirmRemove] = useState(null); // Store option ID to remove
 
   const options = slot.group_slots || [];
 
@@ -42,11 +43,16 @@ export default function EditGroupPollModal({ slot, onClose, onSaved }) {
 
   async function handleRemove(optionId) {
     if (options.length <= 1) return;
-    if (!window.confirm("Remove this time option? Votes for it will be cleared.")) return;
+    setConfirmRemove(optionId);
+  }
+
+  async function confirmAndRemove() {
+    if (!confirmRemove) return;
     setBusy(true);
     setErr(null);
     try {
-      await deleteGroupPollOption(slot.id, optionId);
+      await deleteGroupPollOption(slot.id, confirmRemove);
+      setConfirmRemove(null);
       onSaved?.();
     } catch (e) {
       setErr(e.message || "Failed to remove option");
@@ -208,6 +214,59 @@ export default function EditGroupPollModal({ slot, onClose, onSaved }) {
           </Btn>
         </div>
       </div>
+
+      {/* Custom confirmation dialog */}
+      {confirmRemove && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 300,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <div
+            className="mc-fade"
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: 12,
+              padding: 24,
+              maxWidth: 380,
+              boxShadow: "0 24px 64px rgba(0,0,0,0.24)",
+            }}
+          >
+            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>
+              Remove this time option?
+            </div>
+            <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 20 }}>
+              Votes for it will be cleared.
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <Btn
+                variant="outline"
+                onClick={() => setConfirmRemove(null)}
+                style={{ padding: "8px 16px" }}
+              >
+                Cancel
+              </Btn>
+              <Btn
+                variant="red"
+                onClick={confirmAndRemove}
+                disabled={busy}
+                style={{ padding: "8px 16px" }}
+              >
+                OK
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

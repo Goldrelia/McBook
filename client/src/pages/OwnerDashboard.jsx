@@ -809,8 +809,9 @@ export default function OwnerDashboard() {
                           >
                             {expandedRecurringGroups[group.title] ? "Hide meetings" : "Show meetings"}
                           </Btn>
-                          {/* Show activate/deactivate based on group status */}
-                          {group.slots.every(s => s.status === 'private') ? (
+                          
+                          {/* Always show both buttons for clarity */}
+                          {group.slots.some(s => s.status === 'private') && (
                             <Btn
                               variant="outline"
                               onClick={() => activateRecurringSeries(group.slots[0])}
@@ -818,7 +819,8 @@ export default function OwnerDashboard() {
                             >
                               Activate all
                             </Btn>
-                          ) : group.slots.every(s => s.status === 'active') ? (
+                          )}
+                          {group.slots.some(s => s.status === 'active') && (
                             <Btn
                               variant="outline"
                               onClick={() => makeRecurringSeriesPrivate(group.slots[0])}
@@ -826,24 +828,8 @@ export default function OwnerDashboard() {
                             >
                               Make all private
                             </Btn>
-                          ) : (
-                            <>
-                              <Btn
-                                variant="outline"
-                                onClick={() => activateRecurringSeries(group.slots[0])}
-                                style={{ padding: "6px 10px" }}
-                              >
-                                Activate all
-                              </Btn>
-                              <Btn
-                                variant="outline"
-                                onClick={() => makeRecurringSeriesPrivate(group.slots[0])}
-                                style={{ padding: "6px 10px" }}
-                              >
-                                Make all private
-                              </Btn>
-                            </>
                           )}
+                          
                           {deleteRecurringGroupTitle === group.title ? (
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                               <span style={{ fontSize: 12, color: "var(--text3)", whiteSpace: "nowrap" }}>
