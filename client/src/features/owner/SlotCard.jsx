@@ -25,9 +25,12 @@ const ICON_SIZE = 13;
 export default function SlotCard({ slot, delay, onToggle, onDelete, confirmingDelete, onConfirmDelete, onCancelDelete, onCopyLink, copied, onFinalize, onEditPollOptions }) {
   const navigate = useNavigate();
   const [hov, setHov] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [expandedVotes, setExpandedVotes] = useState(false);
+  const [expandedInvitees, setExpandedInvitees] = useState(false);
+  const [expandedBookings, setExpandedBookings] = useState(false);
   const isActive = slot.status === "active";
   const isGroup  = slot.type === "group";
+  const invitees = Array.isArray(slot.group_invite_emails) ? slot.group_invite_emails : [];
 
   return (
     <div
@@ -104,12 +107,12 @@ export default function SlotCard({ slot, delay, onToggle, onDelete, confirmingDe
       {isGroup && slot.group_slots && !slot.finalized && (
         <div style={{ marginTop: 12, marginBottom: 12 }}>
           <button
-            onClick={() => setExpanded(e => !e)}
+            onClick={() => setExpandedVotes(e => !e)}
             style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: "var(--text3)", fontFamily: "inherit", padding: 0, display: "flex", alignItems: "center", gap: 4 }}
           >
-            {expanded ? "▾" : "▸"} {expanded ? "Hide" : "Show"} vote counts ({slot.group_slots.length} slots)
+            {expandedVotes ? "▾" : "▸"} {expandedVotes ? "Hide" : "Show"} vote counts ({slot.group_slots.length} slots)
           </button>
-          {expanded && (
+          {expandedVotes && (
             <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
               {slot.group_slots.map(gs => (
                 <div key={gs.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 12px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 7 }}>
@@ -131,16 +134,97 @@ export default function SlotCard({ slot, delay, onToggle, onDelete, confirmingDe
         </div>
       )}
 
+      {/* Group invitees list */}
+      {isGroup && invitees.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <button
+            onClick={() => setExpandedInvitees((e) => !e)}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: "var(--text3)",
+              fontFamily: "inherit",
+              padding: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            {expandedInvitees ? "▾" : "▸"} {expandedInvitees ? "Hide" : "Show"} invited ({invitees.length})
+          </button>
+          {expandedInvitees && (
+            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+              {invitees.map((email) => {
+                const name = String(email || "").split("@")[0].replace(".", " ");
+                return (
+                  <div
+                    key={email}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "7px 10px",
+                      background: "var(--surface2)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 7,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <Avatar email={email} name={name} size={26} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                          {name || "Invitee"}
+                        </div>
+                        <div style={{ fontSize: 11.5, color: "var(--text3)" }}>{email}</div>
+                      </div>
+                    </div>
+                    <a
+                      href={`mailto:${email}?subject=${encodeURIComponent(`Re: ${slot.title}`)}`}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--text2)",
+                        textDecoration: "none",
+                        padding: "4px 9px",
+                        border: "1px solid var(--border)",
+                        borderRadius: 6,
+                        transition: "all 0.15s",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = "var(--text)";
+                        e.currentTarget.style.borderColor = "var(--text3)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = "var(--text2)";
+                        e.currentTarget.style.borderColor = "var(--border)";
+                      }}
+                    >
+                      <Mail size={ICON_SIZE} /> Email
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Regular bookings list */}
       {!isGroup && slot.bookings.length > 0 && (
         <div style={{ marginBottom: 12 }}>
           <button
-            onClick={() => setExpanded(e => !e)}
+            onClick={() => setExpandedBookings(e => !e)}
             style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: "var(--text3)", fontFamily: "inherit", padding: 0, display: "flex", alignItems: "center", gap: 4 }}
           >
-            {expanded ? "▾" : "▸"} {expanded ? "Hide" : "Show"} bookers ({slot.bookings.length})
+            {expandedBookings ? "▾" : "▸"} {expandedBookings ? "Hide" : "Show"} bookers ({slot.bookings.length})
           </button>
-          {expanded && (
+          {expandedBookings && (
             <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
               {slot.bookings.map(b => (
                 <div key={b.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 10px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 7 }}>
