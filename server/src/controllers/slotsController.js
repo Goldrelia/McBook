@@ -1666,6 +1666,36 @@ async function getAllOwners(req, res) {
   }
 }
 
+/**
+ * Get all users for group meeting invite picker (excluding the current owner).
+ * Owners only.
+ * GET /api/users
+ */
+async function getAllUsers(req, res) {
+  try {
+    const myId = req?.user?.userId;
+    const [users] = await pool.execute(
+      `SELECT id, email, role
+       FROM users
+       WHERE id <> ?
+       ORDER BY role ASC, email ASC`,
+      [myId],
+    );
+
+    const formatted = users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      name: String(u.email || "").split("@")[0].replace(/\./g, " "),
+      role: u.role,
+    }));
+
+    res.json(formatted);
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+}
+
 module.exports = {
   createSlot,
   getOwnerSlots,
@@ -1683,4 +1713,5 @@ module.exports = {
   getSlotByInvite,
   finalizeGroupSlot,
   getAllOwners,
+  getAllUsers,
 };

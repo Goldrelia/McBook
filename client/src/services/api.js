@@ -93,6 +93,7 @@ export const deleteGroupPollOption = (slotId, optionId) =>
 export const browseSlots = () => apiCall('/browse/slots');
 
 export const getAllOwners = () => apiCall('/owners');
+export const getAllUsers = () => apiCall('/users');
 
 /** Group meeting polls you are invited to (not yet finalized) */
 export const getStudentGroupPolls = () => apiCall('/student/group-polls');

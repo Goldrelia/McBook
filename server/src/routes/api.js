@@ -34,6 +34,7 @@ router.delete('/slots/:id', authenticateToken, requireOwner, slotsController.del
 router.post('/slots/:id/finalize', authenticateToken, requireOwner, slotsController.finalizeGroupSlot);
 router.get('/browse/slots', authenticateToken, slotsController.browseSlots);
 router.get('/owners', authenticateToken, slotsController.getAllOwners);
+router.get('/users', authenticateToken, requireOwner, slotsController.getAllUsers);
 router.get(
   '/student/group-polls',
   authenticateToken,

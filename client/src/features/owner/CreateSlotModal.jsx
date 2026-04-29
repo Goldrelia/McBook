@@ -1,10 +1,11 @@
 // Authors:
 // Aurelia Bouliane - 261118164
 // Hooman Azari - 261055604
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X, Users, Check } from "lucide-react";
 import Btn from "../../components/Btn";
 import TimeDropdown from "../../components/TimeDropdown";
+import { getAllUsers } from "../../services/api";
 
 const ICON_SIZE = 13;
 
@@ -132,22 +133,23 @@ function Type1Form({ onClose, onSave }) {
 // ─────────────────────────────────────────────────────────────────
 // Type 2 — Group Meeting (2-step: define slots → share invite)
 // ─────────────────────────────────────────────────────────────────
-function parseVoterEmails(text) {
+function normalizeEmail(x) {
+  return String(x || "").trim().toLowerCase();
+}
+
+function parseEmailsLoose(text) {
   return String(text || "")
     .split(/[\s,;]+/)
-    .map((s) => s.trim().toLowerCase())
+    .map((s) => normalizeEmail(s))
     .filter(Boolean);
 }
 
-const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const LONG_DATE_OPTIONS = { weekday: "long", year: "numeric", month: "long", day: "numeric" };
-
-function formatLongDate(dateValue) {
-  if (!dateValue) return "";
-  const parsed = new Date(`${dateValue}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return dateValue;
-  return parsed.toLocaleDateString(undefined, LONG_DATE_OPTIONS);
+function isLikelyMcGillEmail(email) {
+  const e = normalizeEmail(email);
+  return e.endsWith("@mcgill.ca") || e.endsWith("@mail.mcgill.ca");
 }
+
+const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 function Type2Form({ onClose, onSave }) {
   const [form, setForm] = useState({
@@ -158,7 +160,11 @@ function Type2Form({ onClose, onSave }) {
     weeklySlots: [],
   });
   const [newRow, setNewRow] = useState({ day: "Monday", time_start: "", time_end: "" });
-  const [voterEmailsText, setVoterEmailsText] = useState("");
+  const [allUsers, setAllUsers] = useState([]);
+  const [inviteQuery, setInviteQuery] = useState("");
+  const [selectedEmails, setSelectedEmails] = useState([]);
+  const [emailError, setEmailError] = useState("");
+  const myEmail = useMemo(() => normalizeEmail(localStorage.getItem("mcbook-email")), []);
 
   function setF(k, v) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -187,8 +193,64 @@ function Type2Form({ onClose, onSave }) {
     setForm((f) => ({ ...f, weeklySlots: f.weeklySlots.filter((s) => s.id !== id) }));
   }
 
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const data = await getAllUsers();
+        if (!alive) return;
+        setAllUsers(Array.isArray(data) ? data : []);
+      } catch {
+        if (!alive) return;
+        setAllUsers([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const inviteMatches = useMemo(() => {
+    const q = inviteQuery.trim().toLowerCase();
+    if (!q) return [];
+    const selected = new Set(selectedEmails.map((e) => normalizeEmail(e)));
+    return allUsers
+      .filter((u) => {
+        const email = String(u.email || "").toLowerCase();
+        if (email && myEmail && email === myEmail) return false;
+        if (!email || selected.has(email)) return false;
+        const name = String(u.name || "").toLowerCase();
+        return (
+          email.includes(q) ||
+          name.includes(q) ||
+          `${name} (${email})`.includes(q)
+        );
+      })
+      .slice(0, 8);
+  }, [allUsers, inviteQuery, myEmail, selectedEmails]);
+
+  function addEmail(raw) {
+    const next = normalizeEmail(raw);
+    if (!next) return;
+    if (!isLikelyMcGillEmail(next)) {
+      setEmailError("Please add a valid @mcgill.ca or @mail.mcgill.ca email.");
+      return;
+    }
+    setSelectedEmails((prev) => {
+      const set = new Set(prev.map((e) => normalizeEmail(e)));
+      if (set.has(next)) return prev;
+      return [...prev, next];
+    });
+    setEmailError("");
+  }
+
+  function removeEmail(email) {
+    const target = normalizeEmail(email);
+    setSelectedEmails((prev) => prev.filter((e) => normalizeEmail(e) !== target));
+  }
+
   function handleCreate() {
-    const voter_emails = parseVoterEmails(voterEmailsText);
+    const voter_emails = selectedEmails.map((e) => normalizeEmail(e)).filter(Boolean);
     if (voter_emails.length === 0) return;
     onSave({
       title: form.title,
@@ -211,7 +273,7 @@ function Type2Form({ onClose, onSave }) {
   const step1Ok =
     form.title &&
     form.weeklySlots.length > 0 &&
-    parseVoterEmails(voterEmailsText).length > 0 &&
+    selectedEmails.length > 0 &&
     seasonOk;
 
   return (
@@ -236,14 +298,125 @@ function Type2Form({ onClose, onSave }) {
       </div>
       <div>
         <label className="mc-label">People who can vote (students or owners) *</label>
-        <textarea
-          className="mc-input"
-          rows={3}
-          placeholder="One @mcgill.ca or @mail.mcgill.ca per line, or comma-separated"
-          value={voterEmailsText}
-          onChange={(e) => setVoterEmailsText(e.target.value)}
-          style={{ resize: "vertical", minHeight: 72, fontSize: 13.5, lineHeight: 1.45 }}
-        />
+        <div style={{ position: "relative" }}>
+          <input
+            className="mc-input"
+            placeholder="Search by name or email…"
+            value={inviteQuery}
+            onChange={(e) => setInviteQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              const raw = inviteQuery.trim();
+              if (!raw) return;
+              const pasted = parseEmailsLoose(raw);
+              if (pasted.length > 1 || raw.includes(",") || raw.includes(";") || raw.includes(" ")) {
+                pasted.forEach(addEmail);
+                setInviteQuery("");
+                return;
+              }
+              if (inviteMatches.length === 1) {
+                addEmail(inviteMatches[0].email);
+                setInviteQuery("");
+                return;
+              }
+              addEmail(raw);
+              setInviteQuery("");
+            }}
+            style={{ fontSize: 13.5, lineHeight: 1.45 }}
+          />
+
+          {inviteQuery.trim() && inviteMatches.length > 0 && (
+            <div
+              style={{
+                position: "absolute",
+                top: "calc(100% + 6px)",
+                left: 0,
+                right: 0,
+                zIndex: 10,
+                maxHeight: 160,
+                overflowY: "auto",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                background: "var(--surface)",
+                boxShadow: "0 16px 40px rgba(0,0,0,0.14)",
+              }}
+            >
+              {inviteMatches.map((u) => (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => {
+                    addEmail(u.email);
+                    setInviteQuery("");
+                  }}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "9px 12px",
+                    border: "none",
+                    borderBottom: "1px solid var(--border)",
+                    background: "transparent",
+                    color: "var(--text)",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    fontSize: 12.5,
+                  }}
+                >
+                  {u.name} ({u.email})
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginTop: 8, fontSize: 12.5, color: "var(--text3)", lineHeight: 1.5 }}>
+          Tip: you can paste one or more emails and press Enter.
+        </div>
+
+        {emailError && (
+          <div style={{ marginTop: 8, fontSize: 12.5, color: "var(--red)", fontWeight: 600 }}>
+            {emailError}
+          </div>
+        )}
+
+        {selectedEmails.length > 0 && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+            {selectedEmails.map((email) => (
+              <span
+                key={email}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  background: "var(--surface2)",
+                  border: "1px solid var(--border)",
+                  fontSize: 12.5,
+                  color: "var(--text2)",
+                }}
+              >
+                <Users size={12} />
+                <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{email}</span>
+                <button
+                  type="button"
+                  onClick={() => removeEmail(email)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "var(--text3)",
+                    display: "flex",
+                    padding: 0,
+                  }}
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       <div>
         <label className="mc-label">Possible meeting window (optional)</label>
