@@ -17,7 +17,7 @@ Code worked on: Backend routing/middleware/controllers, About page support, and 
 
 Name: Wei-Sen Wang
 Student ID: 261116291
-Code worked on: Backend availability/bookings logic and owner dashboard/backend feature support.
+Code worked on: Backend availability/bookings logic, owner dashboard/backend feature support, quality assurance and bug detection.
 
 DESCRIPTION OF CODE NOT CODED BY OUR TEAM
 
