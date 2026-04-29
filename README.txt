@@ -25,8 +25,28 @@ DESCRIPTION OF CODE NOT CODED BY OUR TEAM
    - lucide-react
    - @icons-pack/react-simple-icons
 
-2) Third-party framework/tooling/library internals from dependencies:
-   - React, Vite, React Router, Express, mysql2, and related npm packages.
+2) Other third-party libraries/frameworks used by this project (installed via npm):
+
+   Frontend (`client/package.json`):
+   - react
+   - react-dom
+   - react-router-dom
+   - vite (build tooling)
+   - @vitejs/plugin-react (build tooling)
+   - eslint, @eslint/js, eslint-plugin-react-hooks, eslint-plugin-react-refresh, globals (lint tooling)
+   - @types/react, @types/react-dom (type definitions)
+
+   Backend (`server/package.json`):
+   - express
+   - cors
+   - dotenv
+   - jsonwebtoken
+   - bcrypt
+   - mysql
+   - mysql2
+   - nodemon (dev tooling)
+
+   Note: Node core modules used (not third-party) include `crypto`, `fs`, and `path`.
 
 This "not coded by our team" portion refers to external dependency/library code included and used by the project.
 
