@@ -1516,9 +1516,6 @@ async function finalizeGroupSlot(req, res) {
     }
     notify_emails = [...new Set(notify_emails)];
 
-    // TODO: Send email notifications (SMTP)
-    // Owner can use mailto to notify invitees; see client finalize handler.
-
     const bookingRows = voters.length * (shouldExpand ? weeks : 1);
 
     res.json({
