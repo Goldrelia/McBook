@@ -3,7 +3,8 @@
 // Hooman Azari - 261055604
 
 import { useState } from "react";
-import { Calendar, Clock, MapPin, Mail, Trash2, Link, Eye, EyeOff, Users, Pencil } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Calendar, Clock, MapPin, Mail, Trash2, Link, Eye, EyeOff, Users, Pencil, Vote } from "lucide-react";
 import Btn from "../../components/Btn";
 import Avatar from "../../components/Avatar";
 
@@ -22,6 +23,7 @@ const ICON_SIZE = 13;
 //   copied           — boolean, true briefly after copy
 //   onFinalize       — open finalize modal (group slots only)
 export default function SlotCard({ slot, delay, onToggle, onDelete, confirmingDelete, onConfirmDelete, onCancelDelete, onCopyLink, copied, onFinalize, onEditPollOptions }) {
+  const navigate = useNavigate();
   const [hov, setHov] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const isActive = slot.status === "active";
@@ -42,8 +44,8 @@ export default function SlotCard({ slot, delay, onToggle, onDelete, confirmingDe
       }}
     >
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
-        <div>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 4 }}>
+        <div style={{ flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
             <span style={{
               padding: "2px 8px", borderRadius: 5, fontSize: 11, fontWeight: 600,
@@ -70,25 +72,37 @@ export default function SlotCard({ slot, delay, onToggle, onDelete, confirmingDe
               </span>
             )}
           </div>
-          <div style={{ fontSize: 14.5, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.01em" }}>
+          <div style={{ fontSize: 14.5, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.01em", marginBottom: 10 }}>
             {slot.title}
           </div>
+          
+          {/* Meta - Date, Time, Location */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "5px 16px", fontSize: 12.5, color: "var(--text2)" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Calendar size={ICON_SIZE} /> {slot.date}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Clock size={ICON_SIZE} /> {slot.time}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={ICON_SIZE} /> {slot.location}</span>
+          </div>
         </div>
-        <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text2)", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 6, padding: "3px 10px", flexShrink: 0 }}>
-          {isGroup ? `${slot.totalVoters || 0} ${slot.totalVoters === 1 ? 'voter' : 'voters'}` : `${slot.bookings?.length || 0} booked`}
+        
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, minWidth: 160 }}>
+          <div style={{ width: "100%", fontSize: 12.5, fontWeight: 700, color: "var(--text2)", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 10px", textAlign: "center" }}>
+            {isGroup ? `${slot.totalVoters || 0} ${slot.totalVoters === 1 ? 'voter' : 'voters'}` : `${slot.bookings?.length || 0} booked`}
+          </div>
+          {isGroup && !slot.finalized && (
+            <Btn 
+              variant="outline" 
+              onClick={() => navigate(`/vote/${slot.invite_token}`)}
+              style={{ width: "100%", fontSize: 11.5, padding: "6px 10px", color: "#10b981", borderColor: "rgba(16,185,129,0.3)", justifyContent: "center", gap: 6 }}
+            >
+              <Vote size={13} /> Vote on this poll
+            </Btn>
+          )}
         </div>
-      </div>
-
-      {/* Meta */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "5px 16px", marginBottom: 12, fontSize: 12.5, color: "var(--text2)" }}>
-        <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Calendar size={ICON_SIZE} /> {slot.date}</span>
-        <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Clock size={ICON_SIZE} /> {slot.time}</span>
-        <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={ICON_SIZE} /> {slot.location}</span>
       </div>
 
       {/* Group vote counts */}
       {isGroup && slot.group_slots && !slot.finalized && (
-        <div style={{ marginBottom: 12 }}>
+        <div style={{ marginTop: 12, marginBottom: 12 }}>
           <button
             onClick={() => setExpanded(e => !e)}
             style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: "var(--text3)", fontFamily: "inherit", padding: 0, display: "flex", alignItems: "center", gap: 4 }}

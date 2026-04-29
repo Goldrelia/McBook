@@ -1136,9 +1136,13 @@ async function getSlotByInvite(req, res) {
             need_login: true,
           });
         }
-        is_invited = invRows.some(
+        
+        // Check if user is the owner or is invited
+        const is_owner = req.user.userId === slot.owner_id;
+        is_invited = is_owner || invRows.some(
           (r) => String(r.email).toLowerCase() === req.user.email,
         );
+        
         if (!is_invited) {
           return res.status(403).json({
             error: "You are not on the invited list for this meeting.",
@@ -1159,8 +1163,11 @@ async function getSlotByInvite(req, res) {
     slot.group_finalized = Boolean(slot.group_finalized);
     slot.restricts_to_invitees = restricts_to_invitees;
     slot.is_invited = is_invited;
+    
+    // Owner can always vote, or user must be invited
+    const is_owner = req.user?.userId === slot.owner_id;
     slot.can_vote =
-      !slot.group_finalized && is_invited && slot.type === "group";
+      !slot.group_finalized && (is_owner || is_invited) && slot.type === "group";
 
     res.json(slot);
   } catch (err) {

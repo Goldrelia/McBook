@@ -4,16 +4,65 @@
 
 import { useState, useEffect, useRef } from "react";
 
-// -- Time options (15-min increments)
-export function generateTimeOptions() {
-  const times = [];
-  for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += 15) {
-      const period = h < 12 ? "am" : "pm";
-      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-      const mm = String(m).padStart(2, "0");
-      times.push(`${h12}:${mm}${period}`);
+const DEFAULT_WORKING_HOURS = { start: "7:00am", end: "10:00pm", stepMinutes: 15 };
+
+function parseTimeToMinutes(time12h) {
+  if (!time12h) return null;
+  const match = String(time12h).trim().match(/^(\d{1,2}):(\d{2})(am|pm)$/i);
+  if (!match) return null;
+  const h12 = Number(match[1]);
+  const mm = Number(match[2]);
+  const period = match[3].toLowerCase();
+
+  if (Number.isNaN(h12) || Number.isNaN(mm)) return null;
+
+  let h24 = h12 % 12;
+  if (period === "pm") h24 += 12;
+  // h12 === 12 -> 0:xx for am (already handled by % 12)
+
+  return h24 * 60 + mm;
+}
+
+function formatMinutesToTimeLabel(totalMinutes) {
+  const h24 = Math.floor(totalMinutes / 60);
+  const mm = totalMinutes % 60;
+  const period = h24 < 12 ? "am" : "pm";
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  const mmStr = String(mm).padStart(2, "0");
+  return `${h12}:${mmStr}${period}`;
+}
+
+// -- Time options (15-min increments by default), restricted to working hours.
+export function generateTimeOptions(workingHours = DEFAULT_WORKING_HOURS) {
+  const startMinutes = parseTimeToMinutes(workingHours?.start);
+  const endMinutes = parseTimeToMinutes(workingHours?.end);
+  const stepMinutes = Number(workingHours?.stepMinutes ?? 15);
+
+  if (
+    startMinutes == null ||
+    endMinutes == null ||
+    Number.isNaN(startMinutes) ||
+    Number.isNaN(endMinutes) ||
+    Number.isNaN(stepMinutes) ||
+    stepMinutes <= 0 ||
+    endMinutes < startMinutes
+  ) {
+    // Fallback: keep previous behavior (all times) if config is invalid.
+    const times = [];
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        const period = h < 12 ? "am" : "pm";
+        const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+        const mm = String(m).padStart(2, "0");
+        times.push(`${h12}:${mm}${period}`);
+      }
     }
+    return times;
+  }
+
+  const times = [];
+  for (let t = startMinutes; t <= endMinutes; t += stepMinutes) {
+    times.push(formatMinutesToTimeLabel(t));
   }
   return times;
 }
@@ -23,11 +72,11 @@ export function generateTimeOptions() {
 //   value       — selected time string e.g. "9:00am"
 //   onChange    — function(value)
 //   placeholder — string shown when empty (default "Time")
-export default function TimeDropdown({ value, onChange, placeholder = "Time" }) {
+export default function TimeDropdown({ value, onChange, placeholder = "Time", workingHours }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const listRef = useRef(null);
-  const times = generateTimeOptions();
+  const times = generateTimeOptions(workingHours || DEFAULT_WORKING_HOURS);
 
   useEffect(() => {
     function handler(e) {

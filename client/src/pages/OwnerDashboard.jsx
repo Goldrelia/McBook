@@ -56,6 +56,7 @@ export default function OwnerDashboard() {
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [deleteSlotId, setDeleteSlotId] = useState(null);
+  const [deleteRecurringGroupTitle, setDeleteRecurringGroupTitle] = useState(null);
   const [copiedToken, setCopiedToken] = useState(null);
   const [finalizeSlot, setFinalizeSlot] = useState(null);
   const [meetingTypeFilter, setMeetingTypeFilter] = useState("all");
@@ -298,11 +299,6 @@ export default function OwnerDashboard() {
       setToast({ type: "info", message: `No recurring slots found for "${label}".` });
       return;
     }
-
-    const confirmed = window.confirm(
-      `Delete all recurring series for "${label}"?`
-    );
-    if (!confirmed) return;
 
     const seriesSeeds = [];
     const seen = new Set();
@@ -769,13 +765,38 @@ export default function OwnerDashboard() {
                           >
                             {expandedRecurringGroups[group.title] ? "Hide meetings" : "Show meetings"}
                           </Btn>
-                          <Btn
-                            variant="outline"
-                            onClick={() => deleteRecurringGroup(group.slots, group.title)}
-                            style={{ padding: "6px 10px" }}
-                          >
-                            <Trash2 size={14} /> Delete recurring
-                          </Btn>
+                          {deleteRecurringGroupTitle === group.title ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontSize: 12, color: "var(--text3)", whiteSpace: "nowrap" }}>
+                                Delete all recurring "{group.title}"?
+                              </span>
+                              <Btn
+                                variant="red"
+                                onClick={async () => {
+                                  setDeleteRecurringGroupTitle(null);
+                                  await deleteRecurringGroup(group.slots, group.title);
+                                }}
+                                style={{ padding: "4px 10px" }}
+                              >
+                                Yes
+                              </Btn>
+                              <Btn
+                                variant="outline"
+                                onClick={() => setDeleteRecurringGroupTitle(null)}
+                                style={{ padding: "4px 10px" }}
+                              >
+                                No
+                              </Btn>
+                            </div>
+                          ) : (
+                            <Btn
+                              variant="outline"
+                              onClick={() => setDeleteRecurringGroupTitle(group.title)}
+                              style={{ padding: "6px 10px" }}
+                            >
+                              <Trash2 size={14} /> Delete recurring
+                            </Btn>
+                          )}
                         </div>
                       </div>
                       {expandedRecurringGroups[group.title] && (

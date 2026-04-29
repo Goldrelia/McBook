@@ -168,7 +168,7 @@ export default function VotePage() {
             ) : null}
           </div>
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate(isOwner ? "/owner/dashboard" : "/dashboard")}
             style={{ marginTop: 20, background: "var(--red)", color: "#fff", border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}
           >
             Back to dashboard
@@ -222,6 +222,8 @@ export default function VotePage() {
   });
 
   const authToken = localStorage.getItem("mcbook-token");
+  const userEmail = localStorage.getItem("mcbook-email") || "";
+  const isOwner = userEmail.toLowerCase().endsWith("@mcgill.ca");
 
   // Main vote page
   return (
@@ -370,7 +372,7 @@ export default function VotePage() {
           <div style={{ marginTop: 12 }}>
             <Btn
               variant="outline"
-              onClick={() => navigate("/dashboard")}
+              onClick={() => navigate(isOwner ? "/owner/dashboard" : "/dashboard")}
               style={{ width: "100%", justifyContent: "center", padding: "12px 14px", fontSize: 14 }}
             >
               Return to dashboard

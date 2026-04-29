@@ -28,7 +28,7 @@ async function submitVote(req, res) {
   try {
     // Get the slot by invite token
     const [slots] = await pool.execute(
-      'SELECT id, group_finalized FROM slots WHERE invite_token = ? AND type = "group"',
+      'SELECT id, owner_id, group_finalized FROM slots WHERE invite_token = ? AND type = "group"',
       [token]
     );
 
@@ -41,6 +41,7 @@ async function submitVote(req, res) {
     }
 
     const slotId = slots[0].id;
+    const ownerId = slots[0].owner_id;
 
     const [me] = await pool.execute('SELECT email FROM users WHERE id = ?', [user_id]);
     const myEmail = me[0] ? normalizeEmail(me[0].email) : '';
@@ -50,7 +51,9 @@ async function submitVote(req, res) {
       [slotId]
     );
     if (invRows.length > 0) {
-      const allowed = invRows.some(
+      // Check if user is the owner or is invited
+      const isOwner = user_id === ownerId;
+      const allowed = isOwner || invRows.some(
         (r) => normalizeEmail(r.email) === myEmail
       );
       if (!allowed) {
@@ -114,7 +117,7 @@ async function getMyVotes(req, res) {
 
   try {
     const [slots] = await pool.execute(
-      'SELECT id FROM slots WHERE invite_token = ?',
+      'SELECT id, owner_id FROM slots WHERE invite_token = ?',
       [token]
     );
 
@@ -123,6 +126,8 @@ async function getMyVotes(req, res) {
     }
 
     const slotId = slots[0].id;
+    const ownerId = slots[0].owner_id;
+    
     const [me] = await pool.execute('SELECT email FROM users WHERE id = ?', [user_id]);
     const myEmail = me[0] ? normalizeEmail(me[0].email) : '';
 
@@ -131,7 +136,9 @@ async function getMyVotes(req, res) {
       [slotId]
     );
     if (invRows.length > 0) {
-      const allowed = invRows.some(
+      // Check if user is the owner or is invited
+      const isOwner = user_id === ownerId;
+      const allowed = isOwner || invRows.some(
         (r) => normalizeEmail(r.email) === myEmail
       );
       if (!allowed) {
