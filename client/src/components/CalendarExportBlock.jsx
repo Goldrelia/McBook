@@ -37,7 +37,8 @@ export default function CalendarExportBlock({
             type="checkbox"
             checked={bookedOnly}
             onChange={(e) => onBookedOnlyChange(e.target.checked)}
-            style={{ accentColor: "var(--red)", width: 15, height: 15, cursor: "pointer", marginTop: 2, flexShrink: 0 }}
+            className="mc-checkbox"
+            style={{ marginTop: 2 }}
           />
           <span>
             <strong style={{ color: "var(--text)" }}>Export filter:</strong> {filterLabel}
