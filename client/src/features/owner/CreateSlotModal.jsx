@@ -98,7 +98,7 @@ function Type1Form({ onClose, onSave }) {
         <label className="mc-label">Date &amp; time *</label>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", padding: "8px 12px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8 }}>
           <input type="date" value={form.date} onChange={e => set("date", e.target.value)}
-            style={{ padding: "5px 10px", background: form.date ? "rgba(26,115,232,0.1)" : "var(--surface)", border: "1px solid " + (form.date ? "rgba(26,115,232,0.35)" : "var(--border)"), borderRadius: 6, fontSize: 13.5, fontFamily: "inherit", color: form.date ? "#1a73e8" : "var(--text3)", fontWeight: 500, cursor: "pointer", outline: "none" }}
+            style={{ padding: "5px 10px", backgroundColor: form.date ? "rgba(26,115,232,0.1)" : "var(--surface)", border: "1px solid " + (form.date ? "rgba(26,115,232,0.35)" : "var(--border)"), borderRadius: 6, fontSize: 13.5, fontFamily: "inherit", color: form.date ? "#1a73e8" : "var(--text3)", fontWeight: 500, cursor: "pointer", outline: "none" }}
           />
           <TimeDropdown value={form.time_start} onChange={v => set("time_start", v)} placeholder="Start" />
           <span style={{ color: "var(--text3)", fontSize: 13 }}>–</span>
@@ -439,7 +439,7 @@ function Type2Form({ onClose, onSave }) {
             onChange={(e) => setF("season_start", e.target.value)}
             style={{
               padding: "5px 10px",
-              background: form.season_start ? "rgba(26,115,232,0.1)" : "var(--surface)",
+              backgroundColor: form.season_start ? "rgba(26,115,232,0.1)" : "var(--surface)",
               border: `1px solid ${form.season_start ? "rgba(26,115,232,0.35)" : "var(--border)"}`,
               borderRadius: 6,
               fontSize: 13.5,
@@ -457,7 +457,7 @@ function Type2Form({ onClose, onSave }) {
             onChange={(e) => setF("season_end", e.target.value)}
             style={{
               padding: "5px 10px",
-              background: form.season_end ? "rgba(26,115,232,0.1)" : "var(--surface)",
+              backgroundColor: form.season_end ? "rgba(26,115,232,0.1)" : "var(--surface)",
               border: `1px solid ${form.season_end ? "rgba(26,115,232,0.35)" : "var(--border)"}`,
               borderRadius: 6,
               fontSize: 13.5,

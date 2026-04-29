@@ -530,7 +530,7 @@ export default function BrowseSlotsPage() {
                 onChange={(e) => setRequestForm((prev) => ({ ...prev, date: e.target.value }))}
                 style={{
                   padding: "5px 10px",
-                  background: requestForm.date ? "rgba(26,115,232,0.1)" : "var(--surface)",
+                  backgroundColor: requestForm.date ? "rgba(26,115,232,0.1)" : "var(--surface)",
                   border: "1px solid " + (requestForm.date ? "rgba(26,115,232,0.35)" : "var(--border)"),
                   borderRadius: 6,
                   fontSize: 13.5,

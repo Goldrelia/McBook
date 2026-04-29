@@ -9,6 +9,7 @@
 }
 
 [data-theme="light"] {
+  color-scheme: light;
   --bg: #eef0f4;
   --surface: #fff;
   --surface2: #f8f9fb;
@@ -21,6 +22,7 @@
 }
 
 [data-theme="dark"] {
+  color-scheme: dark;
   --bg: #0d0f14;
   --surface: #16181f;
   --surface2: #1e2028;
@@ -30,6 +32,36 @@
   --text3: #50586a;
   --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25);
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+/* Ensure native date picker icon matches theme (WebKit/Blink). */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  color-scheme: dark;
+}
+
+[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
+  -webkit-filter: invert(1) brightness(1.1);
+  filter: invert(1) brightness(1.1);
+  opacity: 0.9;
+}
+
+/*
+  Some browsers (and some macOS configurations) ignore the indicator styling and
+  keep rendering a black calendar icon in dark mode. Force consistency by
+  hiding the native icon and drawing our own.
+*/
+[data-theme="dark"] input[type="date"] {
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23e8eaed' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px 16px;
+}
+
+[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
 }
 
 html, body, #root {
