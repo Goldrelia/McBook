@@ -441,7 +441,7 @@ function Type3Form({ onClose, onSave }) {
     onSave({
       title: form.title,
       type: "office_hours",
-      status: "active",
+      status: "private",  // Start as private, owner activates when ready
       // Kept for backwards compatibility with API validation.
       date: new Date().toISOString().split("T")[0],
       time_start: "9:00am",

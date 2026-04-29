@@ -17,6 +17,7 @@ router.get('/slots/:id', authenticateToken, slotsController.getSlotById);
 router.get('/slots/:id/options', authenticateToken, slotsController.getSlotOptions);
 router.patch('/slots/:id', authenticateToken, requireOwner, slotsController.updateSlot);
 router.delete('/slots/:id/series', authenticateToken, requireOwner, slotsController.deleteRecurringSeries);
+router.patch('/slots/:id/series/status', authenticateToken, requireOwner, slotsController.updateRecurringSeriesStatus);
 router.post(
   '/slots/:id/group-options',
   authenticateToken,
@@ -32,6 +33,7 @@ router.delete(
 router.delete('/slots/:id', authenticateToken, requireOwner, slotsController.deleteSlot);
 router.post('/slots/:id/finalize', authenticateToken, requireOwner, slotsController.finalizeGroupSlot);
 router.get('/browse/slots', authenticateToken, slotsController.browseSlots);
+router.get('/owners', authenticateToken, slotsController.getAllOwners);
 router.get(
   '/student/group-polls',
   authenticateToken,

@@ -14,6 +14,30 @@ function parseField(message, key) {
 }
 
 /**
+ * Convert 12-hour time format (8:00am) to 24-hour format (08:00:00)
+ */
+function convertTo24Hour(time12h) {
+  if (!time12h) return '00:00:00';
+  
+  // Match format like "8:00am" or "8:00pm"
+  const match = time12h.trim().match(/^(\d{1,2}):(\d{2})(am|pm)$/i);
+  if (!match) return '00:00:00';
+  
+  let hours = parseInt(match[1]);
+  const minutes = match[2];
+  const period = match[3].toLowerCase();
+  
+  // Convert to 24-hour
+  if (period === 'pm' && hours !== 12) {
+    hours += 12;
+  } else if (period === 'am' && hours === 12) {
+    hours = 0;
+  }
+  
+  return `${String(hours).padStart(2, '0')}:${minutes}:00`;
+}
+
+/**
  * Send a meeting request to an owner
  * POST /api/meeting-requests
  */
@@ -164,16 +188,22 @@ async function updateMeetingRequest(req, res) {
       const requestedDate = parseField(request.message, 'Preferred date');
       const requestedTime = parseField(request.message, 'Preferred time');
       const requestedTopic = parseField(request.message, 'Topic');
+      
+      // Parse the time range (e.g., "8:00am - 8:15am")
       const [startRaw = '', endRaw = ''] = requestedTime.split('-').map((s) => s.trim());
 
+      // Convert times to 24-hour format for MySQL
+      const start24 = convertTo24Hour(startRaw);
+      const end24 = convertTo24Hour(endRaw);
+      
       const startTime =
         requestedDate && startRaw
-          ? `${requestedDate} ${startRaw.length === 5 ? `${startRaw}:00` : startRaw}`
+          ? `${requestedDate} ${start24}`
           : new Date().toISOString().slice(0, 19).replace('T', ' ');
 
       const endTime =
         requestedDate && endRaw
-          ? `${requestedDate} ${endRaw.length === 5 ? `${endRaw}:00` : endRaw}`
+          ? `${requestedDate} ${end24}`
           : (() => {
               const fallbackEnd = new Date();
               fallbackEnd.setMinutes(fallbackEnd.getMinutes() + 30);

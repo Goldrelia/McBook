@@ -451,11 +451,17 @@ async function createSlot(req, res) {
           const slotDate = new Date(firstDate);
           slotDate.setDate(firstDate.getDate() + week * 7);
 
-          const startDateTime = new Date(slotDate);
-          startDateTime.setHours(startHour, startMinute, 0, 0);
-
-          const endDateTime = new Date(slotDate);
-          endDateTime.setHours(endHour, endMinute, 0, 0);
+          // Build MySQL datetime strings directly to avoid timezone issues
+          const year = slotDate.getFullYear();
+          const month = String(slotDate.getMonth() + 1).padStart(2, '0');
+          const day = String(slotDate.getDate()).padStart(2, '0');
+          const dateStr = `${year}-${month}-${day}`;
+          
+          const startTimeStr = `${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}:00`;
+          const endTimeStr = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:00`;
+          
+          const startDateTime = `${dateStr} ${startTimeStr}`;
+          const endDateTime = `${dateStr} ${endTimeStr}`;
 
           const slotId = crypto.randomUUID();
           createdIds.push(slotId);
@@ -468,9 +474,9 @@ async function createSlot(req, res) {
               owner_id,
               title,
               type,
-              status || "active",
-              startDateTime.toISOString().slice(0, 19).replace("T", " "),
-              endDateTime.toISOString().slice(0, 19).replace("T", " "),
+              status || "private",  // Default to private
+              startDateTime,
+              endDateTime,
               1,
               recurrence_weeks,
               null,
@@ -621,7 +627,13 @@ async function createSlot(req, res) {
       slotId,
     ]);
 
-    res.status(201).json(rows[0]);
+    // For group meetings, include invitee emails in response
+    const response = rows[0];
+    if (type === "group") {
+      response.group_invite_emails = groupInviteeList;
+    }
+
+    res.status(201).json(response);
   } catch (err) {
     console.error("Error creating slot:", err);
     res.status(500).json({ error: "Failed to create slot" });
@@ -726,7 +738,7 @@ async function getStudentGroupPolls(req, res) {
        FROM group_meeting_invitees g
        JOIN slots s ON s.id = g.slot_id
        JOIN users u ON s.owner_id = u.id
-       WHERE g.email = ? AND s.type = 'group' AND s.group_finalized = 0`,
+       WHERE g.email = ? AND s.type = 'group' AND s.group_finalized = 0 AND s.status = 'active'`,
       [user_id, email],
     );
 
@@ -813,6 +825,8 @@ async function updateSlot(req, res) {
   const owner_id = req.user.userId;
   const { title, status, start_time, end_time } = req.body;
 
+  console.log(`[updateSlot] Updating slot ${id}, status: ${status}`);
+
   try {
     const [slots] = await pool.execute(
       "SELECT * FROM slots WHERE id = ? AND owner_id = ?",
@@ -833,6 +847,7 @@ async function updateSlot(req, res) {
     if (status !== undefined) {
       updates.push("status = ?");
       values.push(status);
+      console.log(`[updateSlot] Setting status to: ${status}`);
     }
     if (start_time !== undefined) {
       updates.push("start_time = ?");
@@ -857,6 +872,8 @@ async function updateSlot(req, res) {
     const [updated] = await pool.execute("SELECT * FROM slots WHERE id = ?", [
       id,
     ]);
+    
+    console.log(`[updateSlot] Updated slot status is now: ${updated[0].status}`);
     res.json(updated[0]);
   } catch (err) {
     console.error("Error updating slot:", err);
@@ -1023,6 +1040,159 @@ async function deleteRecurringSeries(req, res) {
       );
     }
 
+    await pool.execute(
+      `DELETE FROM slots WHERE id IN (${placeholders})`,
+      slotIds
+    );
+
+    res.json({ message: "Recurring series deleted", deleted_count: slotIds.length });
+  } catch (err) {
+    console.error("Error deleting recurring series:", err);
+    res.status(500).json({ error: "Failed to delete recurring series" });
+  }
+}
+
+/**
+ * Update status for all slots in a recurring series
+ * PATCH /api/slots/:id/series/status
+ */
+async function updateRecurringSeriesStatus(req, res) {
+  const { id } = req.params;
+  const { status } = req.body;
+  const owner_id = req.user.userId;
+
+  if (!status || !['active', 'private'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid status. Must be "active" or "private"' });
+  }
+
+  try {
+    const [slots] = await pool.execute(
+      "SELECT * FROM slots WHERE id = ? AND owner_id = ?",
+      [id, owner_id]
+    );
+
+    if (slots.length === 0) {
+      return res.status(404).json({ error: "Slot not found or unauthorized" });
+    }
+
+    const seed = slots[0];
+    if (!seed.is_recurring) {
+      return res.status(400).json({ error: "Slot is not recurring" });
+    }
+
+    // Find all slots in the same recurring series
+    const [seriesSlots] = await pool.execute(
+      `SELECT id
+       FROM slots
+       WHERE owner_id = ?
+         AND is_recurring = 1
+         AND type = ?
+         AND title = ?
+         AND location = ?
+         AND recurrence_weeks = ?
+         AND DAYOFWEEK(start_time) = DAYOFWEEK(?)
+         AND TIME(start_time) = TIME(?)
+         AND TIME(end_time) = TIME(?)`,
+      [
+        owner_id,
+        seed.type,
+        seed.title,
+        seed.location,
+        seed.recurrence_weeks,
+        seed.start_time,
+        seed.start_time,
+        seed.end_time,
+      ]
+    );
+
+    if (seriesSlots.length === 0) {
+      return res.status(404).json({ error: "No recurring series found" });
+    }
+
+    const slotIds = seriesSlots.map((s) => s.id);
+    const placeholders = slotIds.map(() => "?").join(",");
+
+    // Update all slots in series
+    await pool.execute(
+      `UPDATE slots SET status = ? WHERE id IN (${placeholders})`,
+      [status, ...slotIds]
+    );
+
+    res.json({ 
+      message: `Recurring series ${status === 'active' ? 'activated' : 'made private'}`, 
+      updated_count: slotIds.length 
+    });
+  } catch (err) {
+    console.error("Error updating recurring series status:", err);
+    res.status(500).json({ error: "Failed to update recurring series status" });
+  }
+}
+
+async function deleteRecurringSeries(req, res) {
+  const { id } = req.params;
+  const owner_id = req.user.userId;
+
+  try {
+    const [slots] = await pool.execute(
+      "SELECT * FROM slots WHERE id = ? AND owner_id = ?",
+      [id, owner_id]
+    );
+
+    if (slots.length === 0) {
+      return res.status(404).json({ error: "Slot not found or unauthorized" });
+    }
+
+    const seed = slots[0];
+    if (!seed.is_recurring) {
+      return res.status(400).json({ error: "Slot is not recurring" });
+    }
+
+    const [seriesSlots] = await pool.execute(
+      `SELECT id
+       FROM slots
+       WHERE owner_id = ?
+         AND is_recurring = 1
+         AND type = ?
+         AND title = ?
+         AND location = ?
+         AND recurrence_weeks = ?
+         AND DAYOFWEEK(start_time) = DAYOFWEEK(?)
+         AND TIME(start_time) = TIME(?)
+         AND TIME(end_time) = TIME(?)`,
+      [
+        owner_id,
+        seed.type,
+        seed.title,
+        seed.location,
+        seed.recurrence_weeks,
+        seed.start_time,
+        seed.start_time,
+        seed.end_time,
+      ]
+    );
+
+    if (seriesSlots.length === 0) {
+      return res.status(404).json({ error: "No recurring series found" });
+    }
+
+    const slotIds = seriesSlots.map((s) => s.id);
+    const placeholders = slotIds.map(() => "?").join(",");
+
+    const [bookings] = await pool.execute(
+      `SELECT DISTINCT b.user_id
+       FROM bookings b
+       WHERE b.slot_id IN (${placeholders})`,
+      slotIds
+    );
+
+    for (const booking of bookings) {
+      await pool.execute(
+        `INSERT INTO notifications (user_id, type, message)
+         VALUES (?, 'slot_deleted', ?)`,
+        [booking.user_id, `Your recurring booking series "${seed.title}" has been cancelled by the owner.`]
+      );
+    }
+
     const [bookingEmails] = await pool.execute(
       `SELECT DISTINCT u.email
        FROM bookings b
@@ -1120,6 +1290,15 @@ async function getSlotByInvite(req, res) {
     }
 
     const slot = rows[0];
+    
+    // Check if slot is private (deactivated) - but allow owner to access
+    const is_owner = req.user?.userId === slot.owner_id;
+    if (slot.status === 'private' && !is_owner) {
+      return res.status(403).json({ 
+        error: "This poll has been deactivated by the organizer" 
+      });
+    }
+    
     let restricts_to_invitees = false;
     let is_invited = true;
 
@@ -1165,7 +1344,7 @@ async function getSlotByInvite(req, res) {
     slot.is_invited = is_invited;
     
     // Owner can always vote, or user must be invited
-    const is_owner = req.user?.userId === slot.owner_id;
+    // is_owner already declared at the top of the function
     slot.can_vote =
       !slot.group_finalized && (is_owner || is_invited) && slot.type === "group";
 
@@ -1353,6 +1532,34 @@ async function finalizeGroupSlot(req, res) {
   }
 }
 
+/**
+ * Get all owners (professors) for meeting request dropdown
+ * GET /api/owners
+ */
+async function getAllOwners(req, res) {
+  try {
+    const [owners] = await pool.execute(
+      `SELECT id, email, role 
+       FROM users 
+       WHERE role = 'owner' 
+       ORDER BY email`
+    );
+    
+    // Format owners for frontend
+    const formatted = owners.map(owner => ({
+      id: owner.id,
+      email: owner.email,
+      name: owner.email.split('@')[0].replace(/\./g, ' '),
+      role: 'Professor'
+    }));
+    
+    res.json(formatted);
+  } catch (err) {
+    console.error("Error fetching owners:", err);
+    res.status(500).json({ error: "Failed to fetch owners" });
+  }
+}
+
 module.exports = {
   createSlot,
   getOwnerSlots,
@@ -1364,7 +1571,9 @@ module.exports = {
   updateSlot,
   deleteSlot,
   deleteRecurringSeries,
+  updateRecurringSeriesStatus,
   browseSlots,
   getSlotByInvite,
   finalizeGroupSlot,
+  getAllOwners,
 };

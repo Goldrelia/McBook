@@ -31,6 +31,10 @@ export default function VotePage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
+  const userEmail = localStorage.getItem("mcbook-email") || "";
+  const userRole = localStorage.getItem("mcbook-role") || "";
+  const isOwner = userRole === "owner";
+
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("mcbook-theme", theme);
@@ -222,8 +226,6 @@ export default function VotePage() {
   });
 
   const authToken = localStorage.getItem("mcbook-token");
-  const userEmail = localStorage.getItem("mcbook-email") || "";
-  const isOwner = userEmail.toLowerCase().endsWith("@mcgill.ca");
 
   // Main vote page
   return (

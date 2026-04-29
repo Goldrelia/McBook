@@ -71,6 +71,12 @@ export const deleteSlot = (id) =>
 export const deleteSlotSeries = (id) =>
   apiCall(`/slots/${id}/series`, { method: 'DELETE' });
 
+export const updateSlotSeriesStatus = (id, status) =>
+  apiCall(`/slots/${id}/series/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+
 /** Pass an array of { date, start_time, end_time } or a body object (e.g. weekly expand fields). */
 export const addGroupPollOptions = (slotId, payload) =>
   apiCall(`/slots/${slotId}/group-options`, {
@@ -85,6 +91,8 @@ export const deleteGroupPollOption = (slotId, optionId) =>
 
 // ==================== SLOTS (Student - Browse) ====================
 export const browseSlots = () => apiCall('/browse/slots');
+
+export const getAllOwners = () => apiCall('/owners');
 
 /** Group meeting polls you are invited to (not yet finalized) */
 export const getStudentGroupPolls = () => apiCall('/student/group-polls');

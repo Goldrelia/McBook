@@ -8,7 +8,8 @@ import { Search, Check, Mail, X } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Card from "../components/Card";
 import SearchInput from "../components/SearchInput";
-import { browseSlots, createBooking, createMeetingRequest } from "../services/api";
+import TimeDropdown from "../components/TimeDropdown";
+import { browseSlots, createBooking, createMeetingRequest, getAllOwners } from "../services/api";
 
 const ICON_SIZE = 13;
 
@@ -17,6 +18,7 @@ export default function BrowseSlotsPage() {
   const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
   const [query, setQuery] = useState("");
   const [slots, setSlots] = useState([]);  
+  const [allOwners, setAllOwners] = useState([]);
   const [booking, setBooking] = useState(null);
   const [booked, setBooked] = useState(null);
   const [showRequest, setShowRequest] = useState(false);
@@ -40,6 +42,7 @@ export default function BrowseSlotsPage() {
 
   useEffect(() => {
     loadSlots();
+    loadAllOwners();
   }, []);
 
   async function loadSlots() {
@@ -51,6 +54,15 @@ export default function BrowseSlotsPage() {
       alert('Failed to load available slots. Please try again.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadAllOwners() {
+    try {
+      const data = await getAllOwners();
+      setAllOwners(data);
+    } catch (err) {
+      console.error('Failed to load owners:', err);
     }
   }
 
@@ -80,7 +92,7 @@ export default function BrowseSlotsPage() {
   async function submitRequest(ownerId, message) {
     try {
       await createMeetingRequest(ownerId, message);
-      const selectedOwner = owners.find((owner) => String(owner.id) === String(ownerId));
+      const selectedOwner = allOwners.find((owner) => String(owner.id) === String(ownerId));
       if (selectedOwner?.email) {
         const ownerFirstName = selectedOwner.name?.split(" ")[0] || "Professor";
         const { date, startTime, endTime, topic, details } = requestForm;
@@ -143,7 +155,7 @@ export default function BrowseSlotsPage() {
     await submitRequest(ownerId, formattedMessage.trim());
   }
 
-  // Group slots by owner for display
+  // Group slots by owner for display (use filtered for display)
   const slotsByOwner = filtered.reduce((acc, slot) => {
     const email = slot.owner_email;
     if (!acc[email]) {
@@ -159,6 +171,7 @@ export default function BrowseSlotsPage() {
   }, {});
 
   const owners = Object.values(slotsByOwner);
+  
   const ownerClassCards = owners
     .flatMap((owner) => {
       const byClass = owner.slots.reduce((acc, slot) => {
@@ -185,7 +198,7 @@ export default function BrowseSlotsPage() {
       return a.classTitle.localeCompare(b.classTitle);
     });
   const ownerMatches = requestForm.ownerQuery.trim()
-    ? owners.filter((owner) => {
+    ? allOwners.filter((owner) => {
         const q = requestForm.ownerQuery.toLowerCase().trim();
         const combined = `${owner.name} (${owner.email})`.toLowerCase();
         return (
@@ -347,6 +360,11 @@ export default function BrowseSlotsPage() {
                             hour: 'numeric', 
                             minute: '2-digit' 
                           })}
+                          {' – '}
+                          {new Date(slot.end_time).toLocaleString('en-US', { 
+                            hour: 'numeric', 
+                            minute: '2-digit' 
+                          })}
                         </div>
                       </div>
                       <button
@@ -505,51 +523,34 @@ export default function BrowseSlotsPage() {
                 )}
               </div>
             )}
-            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap", padding: "8px 12px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8 }}>
               <input
                 type="date"
                 value={requestForm.date}
                 onChange={(e) => setRequestForm((prev) => ({ ...prev, date: e.target.value }))}
                 style={{
-                  flex: 1,
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  border: "1px solid var(--border)",
-                  background: "var(--surface2)",
-                  color: "var(--text)",
+                  padding: "5px 10px",
+                  background: requestForm.date ? "rgba(26,115,232,0.1)" : "var(--surface)",
+                  border: "1px solid " + (requestForm.date ? "rgba(26,115,232,0.35)" : "var(--border)"),
+                  borderRadius: 6,
+                  fontSize: 13.5,
                   fontFamily: "inherit",
-                  fontSize: 13
+                  color: requestForm.date ? "#1a73e8" : "var(--text3)",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  outline: "none"
                 }}
               />
-              <input
-                type="time"
-                value={requestForm.startTime}
-                onChange={(e) => setRequestForm((prev) => ({ ...prev, startTime: e.target.value }))}
-                style={{
-                  flex: 1,
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  border: "1px solid var(--border)",
-                  background: "var(--surface2)",
-                  color: "var(--text)",
-                  fontFamily: "inherit",
-                  fontSize: 13
-                }}
+              <TimeDropdown 
+                value={requestForm.startTime} 
+                onChange={(v) => setRequestForm((prev) => ({ ...prev, startTime: v }))} 
+                placeholder="Start" 
               />
-              <input
-                type="time"
-                value={requestForm.endTime}
-                onChange={(e) => setRequestForm((prev) => ({ ...prev, endTime: e.target.value }))}
-                style={{
-                  flex: 1,
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  border: "1px solid var(--border)",
-                  background: "var(--surface2)",
-                  color: "var(--text)",
-                  fontFamily: "inherit",
-                  fontSize: 13
-                }}
+              <span style={{ color: "var(--text3)", fontSize: 13 }}>–</span>
+              <TimeDropdown 
+                value={requestForm.endTime} 
+                onChange={(v) => setRequestForm((prev) => ({ ...prev, endTime: v }))} 
+                placeholder="End" 
               />
             </div>
             <input

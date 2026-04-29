@@ -27,6 +27,8 @@ import {
   getStudentGroupPolls,
   finalizeGroupMeeting,
   deleteSlotSeries as apiDeleteSlotSeries,
+  updateSlotSeriesStatus,
+  updateSlot,
 } from "../services/api";
 
 const TABS = [
@@ -214,8 +216,10 @@ export default function OwnerDashboard() {
     localStorage.setItem("mcbook-owner-export-booked-only", checked ? "1" : "0");
   }
 
-  function toggleStatus(id) {
+  async function toggleStatus(id) {
     const slot = slots.find(s => s.id === id);
+    if (!slot) return;
+    
     const newStatus = slot.status === "active" ? "private" : "active";
 
     // Update UI immediately (optimistic update)
@@ -223,27 +227,22 @@ export default function OwnerDashboard() {
       s.id === id ? { ...s, status: newStatus } : s
     ));
 
-    // Send to backend
-    fetch(`${API_URL}/slots/${id}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('mcbook-token')}`
-      },
-      body: JSON.stringify({ status: newStatus })
-    })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Failed to update status');
-        }
-      })
-      .catch(error => {
-        console.error('Error updating slot status:', error);
-        // Revert on error
-        setSlots(prev => prev.map(s =>
-          s.id === id ? { ...s, status: slot.status } : s
-        ));
+    try {
+      await updateSlot(id, { status: newStatus });
+      // Reload slots to ensure sync with backend
+      await loadSlots();
+      setToast({ 
+        type: 'success', 
+        message: `Slot ${newStatus === 'active' ? 'activated' : 'made private'}` 
       });
+    } catch (error) {
+      console.error('Error updating slot status:', error);
+      // Revert on error
+      setSlots(prev => prev.map(s =>
+        s.id === id ? { ...s, status: slot.status } : s
+      ));
+      setToast({ type: 'error', message: `Failed to update slot status: ${error.message}` });
+    }
   }
 
   async function deleteSlot(id) {
@@ -342,6 +341,34 @@ export default function OwnerDashboard() {
     } catch (err) {
       console.error("Error deleting recurring class series:", err);
       setToast({ type: "error", message: `Failed to delete recurring class series: ${err.message}` });
+    }
+  }
+
+  async function activateRecurringSeries(seedSlot) {
+    try {
+      const result = await updateSlotSeriesStatus(seedSlot.id, 'active');
+      await loadSlots();
+      setToast({ 
+        type: 'success', 
+        message: `Activated ${result.updated_count} recurring slots` 
+      });
+    } catch (err) {
+      console.error("Error activating recurring series:", err);
+      setToast({ type: "error", message: `Failed to activate series: ${err.message}` });
+    }
+  }
+
+  async function makeRecurringSeriesPrivate(seedSlot) {
+    try {
+      const result = await updateSlotSeriesStatus(seedSlot.id, 'private');
+      await loadSlots();
+      setToast({ 
+        type: 'success', 
+        message: `Made ${result.updated_count} recurring slots private` 
+      });
+    } catch (err) {
+      console.error("Error making recurring series private:", err);
+      setToast({ type: "error", message: `Failed to make series private: ${err.message}` });
     }
   }
 
@@ -479,6 +506,7 @@ export default function OwnerDashboard() {
         setCreatedGroupLink({
           token: created.invite_token,
           title: created.title,
+          emails: created.group_invite_emails || [],
         });
       }
     } catch (err) {
@@ -634,6 +662,22 @@ export default function OwnerDashboard() {
               >
                 Copy invite link
               </Btn>
+              {createdGroupLink.emails && createdGroupLink.emails.length > 0 && (
+                <Btn
+                  variant="red"
+                  onClick={() => {
+                    const inviteLink = `${window.location.origin}/vote/${createdGroupLink.token}`;
+                    const to = createdGroupLink.emails.join(",");
+                    const subject = encodeURIComponent(`Vote on meeting time: ${createdGroupLink.title}`);
+                    const body = encodeURIComponent(
+                      `Hi,\n\nPlease vote on your preferred meeting time for "${createdGroupLink.title}".\n\nVote here: ${inviteLink}\n\nThanks!`
+                    );
+                    window.open(`mailto:${to}?subject=${subject}&body=${body}`);
+                  }}
+                >
+                  Send email
+                </Btn>
+              )}
               <Btn variant="outline" onClick={() => setCreatedGroupLink(null)}>
                 Dismiss
               </Btn>
@@ -755,7 +799,7 @@ export default function OwnerDashboard() {
                           <div style={{ fontSize: 14.5, fontWeight: 700, color: "var(--text)" }}>{group.title}</div>
                           <div style={{ fontSize: 12.5, color: "var(--text3)" }}>{group.slots.length} recurring meetings</div>
                         </div>
-                        <div style={{ display: "flex", gap: 8 }}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                           <Btn
                             variant="outline"
                             onClick={() =>
@@ -765,6 +809,41 @@ export default function OwnerDashboard() {
                           >
                             {expandedRecurringGroups[group.title] ? "Hide meetings" : "Show meetings"}
                           </Btn>
+                          {/* Show activate/deactivate based on group status */}
+                          {group.slots.every(s => s.status === 'private') ? (
+                            <Btn
+                              variant="outline"
+                              onClick={() => activateRecurringSeries(group.slots[0])}
+                              style={{ padding: "6px 10px" }}
+                            >
+                              Activate all
+                            </Btn>
+                          ) : group.slots.every(s => s.status === 'active') ? (
+                            <Btn
+                              variant="outline"
+                              onClick={() => makeRecurringSeriesPrivate(group.slots[0])}
+                              style={{ padding: "6px 10px" }}
+                            >
+                              Make all private
+                            </Btn>
+                          ) : (
+                            <>
+                              <Btn
+                                variant="outline"
+                                onClick={() => activateRecurringSeries(group.slots[0])}
+                                style={{ padding: "6px 10px" }}
+                              >
+                                Activate all
+                              </Btn>
+                              <Btn
+                                variant="outline"
+                                onClick={() => makeRecurringSeriesPrivate(group.slots[0])}
+                                style={{ padding: "6px 10px" }}
+                              >
+                                Make all private
+                              </Btn>
+                            </>
+                          )}
                           {deleteRecurringGroupTitle === group.title ? (
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                               <span style={{ fontSize: 12, color: "var(--text3)", whiteSpace: "nowrap" }}>
