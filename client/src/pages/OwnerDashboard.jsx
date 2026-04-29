@@ -5,7 +5,7 @@
 // Wei-Sen Wang - 261116291
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Trash2 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Btn from "../components/Btn";
@@ -52,19 +52,33 @@ function SectionTitle({ children }) {
 // -- OwnerDashboard
 export default function OwnerDashboard() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useWindowWidth() < 768;
   const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
-  const [tab, setTab] = useState("all_slots");
+  const [tab, setTab] = useState(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const v = String(sp.get("tab") || "all_slots");
+    const allowed = new Set(TABS.map((t) => t.key));
+    return allowed.has(v) ? v : "all_slots";
+  });
   const [slots, setSlots] = useState([]);
   const [requests, setRequests] = useState([]);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => {
+    const sp = new URLSearchParams(window.location.search);
+    return String(sp.get("q") || "");
+  });
   const [showCreate, setShowCreate] = useState(false);
   const [deleteSlotId, setDeleteSlotId] = useState(null);
   const [deleteInvitedApptId, setDeleteInvitedApptId] = useState(null);
   const [deleteRecurringGroupTitle, setDeleteRecurringGroupTitle] = useState(null);
   const [copiedToken, setCopiedToken] = useState(null);
   const [finalizeSlot, setFinalizeSlot] = useState(null);
-  const [meetingTypeFilter, setMeetingTypeFilter] = useState("all");
+  const [meetingTypeFilter, setMeetingTypeFilter] = useState(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const v = String(sp.get("type") || "all");
+    const allowed = new Set(["all", "single_office_hours", "group", "recurring"]);
+    return allowed.has(v) ? v : "all";
+  });
   const [expandedRecurringGroups, setExpandedRecurringGroups] = useState({});
   const [createdGroupLink, setCreatedGroupLink] = useState(null);
   const [editGroupPollSlot, setEditGroupPollSlot] = useState(null);
@@ -84,6 +98,42 @@ export default function OwnerDashboard() {
     loadRequests();
     loadInvitedGroupPolls();
   }, []);
+
+  // If user navigates back/forward, reflect URL in UI.
+  useEffect(() => {
+    const tabRaw = String(searchParams.get("tab") || "all_slots");
+    const allowedTabs = new Set(TABS.map((t) => t.key));
+    const nextTab = allowedTabs.has(tabRaw) ? tabRaw : "all_slots";
+
+    const typeRaw = String(searchParams.get("type") || "all");
+    const allowedTypes = new Set(["all", "single_office_hours", "group", "recurring"]);
+    const nextType = allowedTypes.has(typeRaw) ? typeRaw : "all";
+
+    const nextSearch = String(searchParams.get("q") || "");
+
+    if (nextTab !== tab) setTab(nextTab);
+    if (nextType !== meetingTypeFilter) setMeetingTypeFilter(nextType);
+    if (nextSearch !== search) setSearch(nextSearch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // Keep URL in sync so refresh preserves filters.
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+
+    if (tab === "all_slots") next.delete("tab");
+    else next.set("tab", tab);
+
+    if (meetingTypeFilter === "all") next.delete("type");
+    else next.set("type", meetingTypeFilter);
+
+    const q = search.trim();
+    if (!q) next.delete("q");
+    else next.set("q", q);
+
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, meetingTypeFilter, search, setSearchParams]);
 
   async function loadSlots() {
     try {
@@ -205,7 +255,7 @@ export default function OwnerDashboard() {
     try {
       const data = await getStudentGroupPolls();
       setInvitedPolls(Array.isArray(data) ? data : []);
-    } catch (err) {
+    } catch {
       // Keep owner dashboard usable even if this endpoint is unavailable.
       setInvitedPolls([]);
     }

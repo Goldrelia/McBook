@@ -3,7 +3,7 @@
 // Hooman Azari - 261055604
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, LogOut } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Btn from "../components/Btn";
@@ -18,12 +18,21 @@ import { getUserBookings, cancelBooking as apiCancelBooking, getMyMeetingRequest
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useWindowWidth() < 768;
   const [theme, setTheme] = useState(() => localStorage.getItem("mcbook-theme") || "light");
   const [appointments, setAppointments] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [filter, setFilter] = useState("all");
-  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const v = String(sp.get("type") || "all");
+    const allowed = new Set(["all", "office_hours", "group", "request"]);
+    return allowed.has(v) ? v : "all";
+  });
+  const [search, setSearch] = useState(() => {
+    const sp = new URLSearchParams(window.location.search);
+    return String(sp.get("q") || "");
+  });
   const [filterKey, setFilterKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
@@ -48,7 +57,7 @@ export default function Dashboard() {
         const payload = JSON.parse(atob(token.split(".")[1]));
         tokenRole = String(payload?.role || "");
       }
-    } catch (_) {
+    } catch {
       tokenRole = "";
     }
     const ownerSession =
@@ -59,6 +68,31 @@ export default function Dashboard() {
     }
     loadBookings();
   }, [navigate]);
+
+  // If user navigates back/forward, reflect URL in UI.
+  useEffect(() => {
+    const v = String(searchParams.get("type") || "all");
+    const allowed = new Set(["all", "office_hours", "group", "request"]);
+    const nextFilter = allowed.has(v) ? v : "all";
+    const nextSearch = String(searchParams.get("q") || "");
+    if (nextFilter !== filter) setFilter(nextFilter);
+    if (nextSearch !== search) setSearch(nextSearch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // Keep URL in sync so refresh preserves filters.
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    if (filter === "all") next.delete("type");
+    else next.set("type", filter);
+
+    const q = search.trim();
+    if (!q) next.delete("q");
+    else next.set("q", q);
+
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, search, setSearchParams]);
 
   /** Legacy: one DB booking for a finalized recurring group slot — show one card per week. */
   function expandRecurringGroupBookings(rows) {
