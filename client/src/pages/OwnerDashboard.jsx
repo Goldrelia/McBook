@@ -71,7 +71,6 @@ export default function OwnerDashboard() {
   const [deleteSlotId, setDeleteSlotId] = useState(null);
   const [deleteInvitedApptId, setDeleteInvitedApptId] = useState(null);
   const [deleteRecurringGroupTitle, setDeleteRecurringGroupTitle] = useState(null);
-  const [copiedToken, setCopiedToken] = useState(null);
   const [finalizeSlot, setFinalizeSlot] = useState(null);
   const [meetingTypeFilter, setMeetingTypeFilter] = useState(() => {
     const sp = new URLSearchParams(window.location.search);
@@ -436,13 +435,6 @@ export default function OwnerDashboard() {
     }
   }
 
-  function copyInviteLink(token) {
-    const url = `${window.location.origin}/vote/${token}`;
-    navigator.clipboard.writeText(url);
-    setCopiedToken(token);
-    setTimeout(() => setCopiedToken(null), 2000);
-  }
-
   async function handleRequest(id, action) {
     const req = requests.find(r => r.id === id);
     const previousRequests = requests;
@@ -799,30 +791,19 @@ export default function OwnerDashboard() {
               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>
                 Group meeting created: {createdGroupLink.title}
               </div>
-              <div style={{ fontSize: 12, color: "var(--text3)", fontFamily: "ui-monospace, monospace", wordBreak: "break-all" }}>
-                {window.location.origin}/vote/{createdGroupLink.token}
+              <div style={{ fontSize: 12.5, color: "var(--text3)" }}>
+                Invited students will see it directly in their dashboard.
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-              <Btn
-                variant="red"
-                onClick={() => {
-                  navigator.clipboard.writeText(
-                    `${window.location.origin}/vote/${createdGroupLink.token}`,
-                  );
-                }}
-              >
-                Copy invite link
-              </Btn>
               {createdGroupLink.emails && createdGroupLink.emails.length > 0 && (
                 <Btn
                   variant="red"
                   onClick={() => {
-                    const inviteLink = `${window.location.origin}/vote/${createdGroupLink.token}`;
                     const to = createdGroupLink.emails.join(",");
                     const subject = encodeURIComponent(`Vote on meeting time: ${createdGroupLink.title}`);
                     const body = encodeURIComponent(
-                      `Hi,\n\nPlease vote on your preferred meeting time for "${createdGroupLink.title}".\n\nVote here: ${inviteLink}\n\nThanks!`
+                      `Hi,\n\nPlease vote on your preferred meeting time for "${createdGroupLink.title}".\n\nThanks!`
                     );
                     window.open(`mailto:${to}?subject=${subject}&body=${body}`);
                   }}
@@ -991,8 +972,6 @@ export default function OwnerDashboard() {
                               confirmingDelete={deleteSlotId === slot.id}
                               onConfirmDelete={() => deleteSlot(slot.id)}
                               onCancelDelete={() => setDeleteSlotId(null)}
-                              onCopyLink={() => copyInviteLink(slot.invite_token)}
-                              copied={copiedToken === slot.invite_token}
                               onFinalize={() => setFinalizeSlot(slot)}
                               onEditPollOptions={() => setEditGroupPollSlot(slot)}
                             />
@@ -1019,8 +998,6 @@ export default function OwnerDashboard() {
                       confirmingDelete={deleteSlotId === slot.id}
                       onConfirmDelete={() => deleteSlot(slot.id)}
                       onCancelDelete={() => setDeleteSlotId(null)}
-                      onCopyLink={() => copyInviteLink(slot.invite_token)}
-                      copied={copiedToken === slot.invite_token}
                       onFinalize={() => setFinalizeSlot(slot)}
                       onEditPollOptions={() => setEditGroupPollSlot(slot)}
                     />

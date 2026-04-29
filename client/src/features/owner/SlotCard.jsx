@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Calendar, Clock, MapPin, Mail, Trash2, Link, Eye, EyeOff, Users, Pencil, Vote } from "lucide-react";
+import { Calendar, Clock, MapPin, Mail, Trash2, Eye, EyeOff, Users, Pencil, Vote } from "lucide-react";
 import Btn from "../../components/Btn";
 import Avatar from "../../components/Avatar";
 
@@ -257,11 +257,6 @@ export default function SlotCard({ slot, delay, onToggle, onDelete, confirmingDe
             {isActive ? <EyeOff size={ICON_SIZE} /> : <Eye size={ICON_SIZE} />}
             {isActive ? "Make private" : "Activate"}
           </Btn>
-          {isGroup && (
-            <Btn variant="outline" onClick={onCopyLink}>
-              <Link size={ICON_SIZE} /> {copied ? "Copied!" : "Copy invite link"}
-            </Btn>
-          )}
           {isGroup && !slot.finalized && onEditPollOptions && (
             <Btn variant="outline" onClick={onEditPollOptions} style={{ color: "var(--text2)", borderColor: "var(--border)" }}>
               <Pencil size={ICON_SIZE} /> Edit poll times
