@@ -800,12 +800,17 @@ async function getStudentGroupPolls(req, res) {
  */
 async function leaveStudentGroupPoll(req, res) {
   const user_id = req.user.userId;
-  const email = normalizeEmail(req.user.email);
   const { slotId } = req.params;
 
   try {
+    const [me] = await pool.execute("SELECT email FROM users WHERE id = ?", [user_id]);
+    const email = normalizeEmail(me?.[0]?.email);
+    if (!email) {
+      return res.status(400).json({ error: "Could not resolve your account email." });
+    }
+
     const [rows] = await pool.execute(
-      `SELECT s.id, s.title, s.owner_id, u.email AS owner_email
+      `SELECT s.id, s.title, s.owner_id, s.group_finalized, u.email AS owner_email
        FROM slots s
        JOIN users u ON u.id = s.owner_id
        WHERE s.id = ? AND s.type = 'group'`,
@@ -842,11 +847,30 @@ async function leaveStudentGroupPoll(req, res) {
       [slotId, user_id],
     );
 
+    // If the poll is not finalized and no invitees remain, remove it entirely so it
+    // disappears for the organizer as well (matches expected UX).
+    let deleted_slot = false;
+    if (!slot.group_finalized) {
+      const [remaining] = await pool.execute(
+        "SELECT COUNT(*) AS c FROM group_meeting_invitees WHERE slot_id = ?",
+        [slotId],
+      );
+      const count = Number(remaining?.[0]?.c ?? 0);
+      if (count <= 0) {
+        await pool.execute(
+          "DELETE FROM slots WHERE id = ? AND type = 'group' AND group_finalized = 0",
+          [slotId],
+        );
+        deleted_slot = true;
+      }
+    }
+
     return res.json({
       success: true,
       slot_id: slotId,
       title: slot.title,
       owner_email: slot.owner_email,
+      deleted_slot,
     });
   } catch (err) {
     console.error("Error leaving group poll:", err);

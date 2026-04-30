@@ -27,6 +27,7 @@ import {
   getOwnerSlots,
   getOwnerRequests,
   getStudentGroupPolls,
+  leaveStudentGroupPoll,
   finalizeGroupMeeting,
   deleteSlotSeries as apiDeleteSlotSeries,
   updateSlotSeriesStatus,
@@ -490,32 +491,40 @@ export default function OwnerDashboard() {
   }
 
   async function cancelInvitedAppointment(appt) {
-    const bookingId = appt?.bookingIdForApi;
-    if (!bookingId) {
-      setToast({ type: "error", message: "Cannot cancel this meeting right now." });
-      return;
-    }
-
-    if (appt.owner_email) {
-      const subject = encodeURIComponent(`Booking Cancelled: ${appt.title}`);
-      const body = encodeURIComponent(
-        `Hi,\n\nI cancelled my booking for "${appt.title}" on ${appt.date} at ${appt.time}.\n\nRegards`,
-      );
-      window.open(`mailto:${appt.owner_email}?subject=${subject}&body=${body}`);
-    }
+    const slotId = appt?.slot_id;
+    if (!slotId) return;
 
     const previousInvited = invitedPolls;
-    setInvitedPolls((prev) => prev.filter((p) => `invited-finalized-${p.id}` !== appt.id));
+    // Remove immediately from UI (optimistic)
+    setInvitedPolls((prev) => prev.filter((p) => String(p.id) !== String(slotId)));
     setDeleteInvitedApptId(null);
 
     try {
-      await apiCancelBooking(bookingId);
+      const result = await leaveStudentGroupPoll(slotId);
       await loadInvitedGroupPolls();
-      setToast({ type: "success", message: "Meeting cancelled." });
+      setToast({ type: "success", message: "You left the group meeting." });
+
+      // Email organizer after successful leave.
+      if (appt.owner_email) {
+        const subject = `Leaving group meeting: ${appt.title || "Group meeting"}`;
+        const body =
+          `Hi,\n\n` +
+          `I’m leaving this group meeting invitation:\n` +
+          `- Title: ${appt.title || "Group meeting"}\n` +
+          `${appt.location ? `- Location: ${appt.location}\n` : ""}` +
+          `\nThanks,\n` +
+          `Sent from McBook.`;
+        window.location.href =
+          `mailto:${appt.owner_email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      }
+
+      if (result?.deleted_slot) {
+        await loadSlots();
+      }
     } catch (err) {
       console.error("Failed to cancel invited appointment:", err);
       setInvitedPolls(previousInvited);
-      setToast({ type: "error", message: "Failed to cancel meeting." });
+      setToast({ type: "error", message: err.message || "Failed to leave group meeting." });
     }
   }
 

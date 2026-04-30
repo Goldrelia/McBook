@@ -14,7 +14,7 @@ import { buildStudentAppointmentsIcs, downloadIcsFile } from "../utils/calendarE
 import SearchInput from "../components/SearchInput";
 import AppointmentCard from "../features/dashboard/AppointmentCard";
 import useWindowWidth from "../hooks/useWindowWidth";
-import { getUserBookings, cancelBooking as apiCancelBooking, getMyMeetingRequests, getStudentGroupPolls } from "../services/api";
+import { getUserBookings, cancelBooking as apiCancelBooking, getMyMeetingRequests, getStudentGroupPolls, leaveStudentGroupPoll } from "../services/api";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -357,7 +357,45 @@ export default function Dashboard() {
   }
 
   async function handleDelete(appt) {
-    if (!appt || appt.isRequestOnly || appt.isGroupPoll) return;
+    if (!appt || appt.isRequestOnly) return;
+
+    if (appt.isGroupPoll) {
+      const slotId = appt.slot_id;
+      if (!slotId) return;
+
+      const oldAppointments = appointments;
+      setAppointments((prev) => prev.filter((a) => a.id !== appt.id));
+      setDeleteConfirm(null);
+
+      try {
+        const result = await leaveStudentGroupPoll(slotId);
+        setToast({ type: "success", message: "You left the group meeting." });
+
+        // Email organizer after successful leave.
+        if (appt.owner_email) {
+          const subject = `Leaving group meeting: ${appt.title || "Group meeting"}`;
+          const body =
+            `Hi,\n\n` +
+            `I’m leaving this group meeting invitation:\n` +
+            `- Title: ${appt.title || "Group meeting"}\n` +
+            `${appt.location ? `- Location: ${appt.location}\n` : ""}` +
+            `\nThanks,\n` +
+            `Sent from McBook.`;
+          window.location.href =
+            `mailto:${appt.owner_email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        }
+
+        // If this was the last invitee and the poll was deleted, reload to avoid stale UI.
+        if (result?.deleted_slot) {
+          await loadBookings();
+        }
+      } catch (err) {
+        console.error("Error leaving group meeting:", err);
+        setAppointments(oldAppointments);
+        setToast({ type: "error", message: err.message || "Failed to leave group meeting." });
+      }
+      return;
+    }
 
     const bookingIdToCancel = appt.bookingIdForApi ?? appt.id;
 
