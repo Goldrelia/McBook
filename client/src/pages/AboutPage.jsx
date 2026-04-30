@@ -20,9 +20,6 @@ import {
 
 const REPO_URL = "https://github.com/Goldrelia/McBook";
 
-// TODO: fill in role, contributions, github, and photo
-// photo: import the image ex: import aurelia from "../assets/aurelia.jpg"
-// then set photo: aurelia in the TEAM array
 const TEAM = [
   {
     name: "Aurelia Bouliane",
