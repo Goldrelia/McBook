@@ -5,11 +5,11 @@ TEAM CONTRIBUTION
 
 Name: Aurelia Bouliane
 Student ID: 261118164
-Code worked on: Frontend architecture/components/pages, owner/student dashboards, API integration, booking flows, README/docs, and backend/controller integration across features.
+Code worked on: Frontend architecture/components/pages, owner/student dashboards, API integration, booking flows, README/docs, backend/controller integration across features, and database schema contributions (addition of table)
 
 Name: Hooman Azari (preferred name Houman, but officially Hooman on Minerva)
 Student ID: 261055604
-Code worked on: Frontend architecture/components/pages, Owner/student dashboards, Backend database configuration/schema work, slot/meeting business logic, API integration support, shared frontend feature work, and invited owner/student parity flows for group meetings (dashboard visibility/filtering, voting access, finalized meeting display, and cancellation behavior/email parity).
+Code worked on: Frontend architecture/components/pages, Owner/student dashboards, Backend database configuration/schema work (initial schema and table addition), slot/meeting business logic, API integration support, shared frontend feature work, and invited owner/student parity flows for group meetings (dashboard visibility/filtering, voting access, finalized meeting display, and cancellation behavior/email parity).
 
 Name: Derek Long
 Student ID: 261161918
