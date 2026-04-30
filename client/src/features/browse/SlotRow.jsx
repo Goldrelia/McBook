@@ -51,7 +51,7 @@ export default function SlotRow({ slot, ownerEmail, onReserve }) {
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
         {/* Direct email */}
         <a
-          href={`mailto:${ownerEmail}?subject=Re: Office Hours — ${slot.day} ${slot.time}`}
+          href={`mailto:${ownerEmail}?subject=${encodeURIComponent(`Re: Office Hours — ${slot.day} ${slot.time}`)}`}
           onMouseEnter={() => setMailHov(true)}
           onMouseLeave={() => setMailHov(false)}
           style={{

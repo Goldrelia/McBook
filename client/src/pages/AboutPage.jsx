@@ -73,6 +73,8 @@ export default function AboutPage() {
   const token = localStorage.getItem("mcbook-token");
   const role = localStorage.getItem("mcbook-role");
   const homeRoute = token ? (role === "owner" ? "/owner/dashboard" : "/dashboard") : "/";
+  const homeLabel = token ? (role === "owner" ? "Owner Dashboard" : "Dashboard") : "Landing";
+  const homeActionLabel = token ? (role === "owner" ? "Back to Owner Dashboard" : "Back to Dashboard") : "Log in →";
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -86,13 +88,13 @@ export default function AboutPage() {
         theme={theme}
         onToggle={() => setTheme(t => t === "light" ? "dark" : "light")}
         navLinks={[
-          { label: token ? "Dashboard" : "Landing", onClick: () => navigate(homeRoute) },
+          { label: homeLabel, onClick: () => navigate(homeRoute) },
           { label: "About Us", onClick: () => navigate("/about"), active: true },
         ]}
         actions={[
           token
-            ? { label: "Back to Dashboard", variant: "ghost", onClick: () => navigate(homeRoute) }
-            : { label: "Log in →", variant: "ghost", onClick: () => navigate("/login") },
+            ? { label: homeActionLabel, variant: "ghost", onClick: () => navigate(homeRoute) }
+            : { label: homeActionLabel, variant: "ghost", onClick: () => navigate("/login") },
         ]}
       />
 

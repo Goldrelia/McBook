@@ -76,6 +76,27 @@ export default function BrowseSlotsPage() {
 
   async function confirmReservation(slot) {
     try {
+      // Trigger mailto directly from the user's click to avoid popup blockers.
+      if (slot?.owner_email) {
+        const start = slot.start_time ? new Date(slot.start_time) : null;
+        const end = slot.end_time ? new Date(slot.end_time) : null;
+        const when =
+          start && end
+            ? `${start.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} – ${end.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}`
+            : "";
+        const subject = `New booking: ${slot.title || "Office hours"}`;
+        const body =
+          `Hi,\n\n` +
+          `I just booked your office hours slot.\n\n` +
+          `${slot.title ? `Course: ${slot.title}\n` : ""}` +
+          `${when ? `When: ${when}\n` : ""}` +
+          `${slot.location ? `Where: ${slot.location}\n` : ""}` +
+          `\nThanks,\n` +
+          `Sent from McBook.`;
+        const url = `mailto:${slot.owner_email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        window.location.href = url;
+      }
+
       await createBooking(slot.id);
       setBooked({ slot, owner_email: slot.owner_email });
       setBooking(null);
@@ -91,13 +112,14 @@ export default function BrowseSlotsPage() {
 
   async function submitRequest(ownerId, message) {
     try {
-      await createMeetingRequest(ownerId, message);
       const selectedOwner = allOwners.find((owner) => String(owner.id) === String(ownerId));
       if (selectedOwner?.email) {
         const ownerFirstName = selectedOwner.name?.split(" ")[0] || "Professor";
         const { date, startTime, endTime, topic, details } = requestForm;
-        const subject = encodeURIComponent("New Meeting Request");
-        const body = encodeURIComponent(
+        // Open the email draft immediately from the click gesture context.
+        // Using window.location avoids popup blockers that may block window.open after awaits.
+        const subject = "New Meeting Request";
+        const body =
           `Hi ${ownerFirstName},\n\n` +
           `I am requesting an office hour meeting with the following details:\n\n` +
           `- Preferred date: ${date}\n` +
@@ -105,10 +127,12 @@ export default function BrowseSlotsPage() {
           `- Topic: ${topic}\n` +
           `${details?.trim() ? `- Additional details: ${details.trim()}\n` : ""}\n` +
           `Thanks,\n` +
-          `Sent from McBook.`
-        );
-        window.open(`mailto:${selectedOwner.email}?subject=${subject}&body=${body}`);
+          `Sent from McBook.`;
+        const url = `mailto:${selectedOwner.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        window.location.href = url;
       }
+
+      await createMeetingRequest(ownerId, message);
       setRequested({ owner_email: selectedOwner?.email || "selected professor" });
       setShowRequest(false);
       setRequestForm({
