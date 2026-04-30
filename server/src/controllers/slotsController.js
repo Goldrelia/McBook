@@ -652,7 +652,7 @@ async function getOwnerSlots(req, res) {
       `SELECT s.*, 
        GROUP_CONCAT(DISTINCT CONCAT(b.id, ':', u.email, ':', COALESCE(b.status, 'confirmed')) SEPARATOR '||') as booking_data
        FROM slots s
-       LEFT JOIN bookings b ON s.id = b.slot_id
+       LEFT JOIN bookings b ON s.id = b.slot_id AND b.status = 'confirmed'
        LEFT JOIN users u ON b.user_id = u.id
        WHERE s.owner_id = ?
        GROUP BY s.id
@@ -840,6 +840,10 @@ async function leaveStudentGroupPoll(req, res) {
       "DELETE FROM availability_responses WHERE slot_id = ? AND user_id = ?",
       [slotId, user_id],
     );
+
+    // Keep group_slot_options.vote_count in sync after removing votes.
+    await recalcGroupOptionVoteCounts(slotId);
+
     await pool.execute(
       `UPDATE bookings
        SET status = 'cancelled'
