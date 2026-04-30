@@ -285,7 +285,6 @@ export default function Dashboard() {
       const transformedGroupPolls = (groupPolls || [])
         .filter(
           (p) => {
-            if (p.group_finalized) return false;
             if (confirmedGroupSlotIds.has(String(p.id || ""))) return false;
             if (confirmedGroupInviteTokens.has(String(p.invite_token || ""))) return false;
             const identityKey = [
@@ -297,22 +296,47 @@ export default function Dashboard() {
             return true;
           },
         )
-        .map((p) => ({
-        id: `gpoll-${p.id}`,
-        slot_id: p.id,
-        type: "group",
-        status: "pending",
-        groupPollStatus: p.has_voted ? "awaiting_owner" : "need_vote",
-        title: p.title,
-        date: p.has_voted ? "Pending owner" : "Needs your vote",
-        time: p.has_voted
-          ? "Your vote is recorded — time not finalized yet"
-          : "Vote on the times that work for you",
-        location: p.location || "TBD",
-        owner_email: p.owner_email,
-        invite_token: p.invite_token,
-        isGroupPoll: true,
-      }));
+        .map((p) => {
+          const isFinalized = Boolean(p.group_finalized);
+          if (isFinalized) {
+            return {
+              id: `gpoll-${p.id}`,
+              slot_id: p.id,
+              type: "group",
+              status: "confirmed",
+              title: p.title,
+              date: p.start_time
+                ? new Date(p.start_time).toLocaleDateString("en-US", LONG_DATE_OPTIONS)
+                : "Finalized",
+              time:
+                p.start_time && p.end_time
+                  ? formatTime(p.start_time, p.end_time)
+                  : "Final time set",
+              location: p.location || "TBD",
+              owner_email: p.owner_email,
+              invite_token: p.invite_token,
+              isGroupPoll: true,
+              start_time: p.start_time,
+              end_time: p.end_time,
+            };
+          }
+          return {
+            id: `gpoll-${p.id}`,
+            slot_id: p.id,
+            type: "group",
+            status: "pending",
+            groupPollStatus: p.has_voted ? "awaiting_owner" : "need_vote",
+            title: p.title,
+            date: p.has_voted ? "Pending owner" : "Needs your vote",
+            time: p.has_voted
+              ? "Your vote is recorded — time not finalized yet"
+              : "Vote on the times that work for you",
+            location: p.location || "TBD",
+            owner_email: p.owner_email,
+            invite_token: p.invite_token,
+            isGroupPoll: true,
+          };
+        });
 
       const parseMessageField = (message = "", key) => {
         const line = String(message)
@@ -391,6 +415,25 @@ export default function Dashboard() {
         }
       } catch (err) {
         console.error("Error leaving group meeting:", err);
+        setAppointments(oldAppointments);
+        setToast({ type: "error", message: err.message || "Failed to leave group meeting." });
+      }
+      return;
+    }
+
+    // For finalized group meetings that appear as confirmed bookings, "Cancel" should
+    // mean leaving the meeting (remove invitee + cancel any booking), not only
+    // cancelling a booking row.
+    if (appt.type === "group" && appt.slot_id) {
+      const oldAppointments = appointments;
+      setAppointments((prev) => prev.filter((a) => (a.bookingIdForApi ?? a.id) !== (appt.bookingIdForApi ?? appt.id)));
+      setDeleteConfirm(null);
+      try {
+        await leaveStudentGroupPoll(appt.slot_id);
+        setToast({ type: "success", message: "You left the group meeting." });
+        await loadBookings();
+      } catch (err) {
+        console.error("Error leaving finalized group meeting:", err);
         setAppointments(oldAppointments);
         setToast({ type: "error", message: err.message || "Failed to leave group meeting." });
       }

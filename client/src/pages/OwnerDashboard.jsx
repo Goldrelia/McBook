@@ -688,7 +688,7 @@ export default function OwnerDashboard() {
     (p) => !p.group_finalized && p.status === "active",
   );
   const finalizedInvitedPolls = invitedPolls.filter(
-    (p) => p.group_finalized && p.status === "active" && p.my_confirmed_booking_id,
+    (p) => p.group_finalized && p.status === "active",
   );
   const pendingInvitedAppointments = pendingInvitedPolls.map((poll) => ({
     id: `invited-pending-${poll.id}`,

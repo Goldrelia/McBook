@@ -851,22 +851,23 @@ async function leaveStudentGroupPoll(req, res) {
       [slotId, user_id],
     );
 
-    // If the poll is not finalized and no invitees remain, remove it entirely so it
-    // disappears for the organizer as well (matches expected UX).
+    // If no invitees remain AND no confirmed bookings remain, remove the slot entirely
+    // so it disappears for the organizer as well (matches expected UX). This applies
+    // to both pending polls and finalized meetings (including recurring instances).
     let deleted_slot = false;
-    if (!slot.group_finalized) {
-      const [remaining] = await pool.execute(
-        "SELECT COUNT(*) AS c FROM group_meeting_invitees WHERE slot_id = ?",
-        [slotId],
-      );
-      const count = Number(remaining?.[0]?.c ?? 0);
-      if (count <= 0) {
-        await pool.execute(
-          "DELETE FROM slots WHERE id = ? AND type = 'group' AND group_finalized = 0",
-          [slotId],
-        );
-        deleted_slot = true;
-      }
+    const [remainingInv] = await pool.execute(
+      "SELECT COUNT(*) AS c FROM group_meeting_invitees WHERE slot_id = ?",
+      [slotId],
+    );
+    const remainingInvitees = Number(remainingInv?.[0]?.c ?? 0);
+    const [remainingBookings] = await pool.execute(
+      "SELECT COUNT(*) AS c FROM bookings WHERE slot_id = ? AND status = 'confirmed'",
+      [slotId],
+    );
+    const remainingConfirmedBookings = Number(remainingBookings?.[0]?.c ?? 0);
+    if (remainingInvitees <= 0 && remainingConfirmedBookings <= 0) {
+      await pool.execute("DELETE FROM slots WHERE id = ? AND type = 'group'", [slotId]);
+      deleted_slot = true;
     }
 
     return res.json({
@@ -1568,7 +1569,7 @@ async function finalizeGroupSlot(req, res) {
       await conn.execute(
         `UPDATE slots
          SET start_time = ?, end_time = ?, is_recurring = 0, recurrence_weeks = NULL,
-             group_finalized = 1, status = 'private'
+             group_finalized = 1, status = 'active'
          WHERE id = ?`,
         [finalStartTime, finalEndTime, id],
       );
@@ -1601,7 +1602,7 @@ async function finalizeGroupSlot(req, res) {
           const newToken = crypto.randomBytes(16).toString("hex");
           await conn.execute(
             `INSERT INTO slots (id, owner_id, title, type, status, start_time, end_time, is_recurring, recurrence_weeks, invite_token, group_finalized, group_season_start, group_season_end, location)
-             SELECT ?, owner_id, title, type, 'private', ?, ?, 0, NULL, ?, 1, NULL, NULL, location
+             SELECT ?, owner_id, title, type, 'active', ?, ?, 0, NULL, ?, 1, NULL, NULL, location
              FROM slots WHERE id = ?`,
             [newId, formatMysqlDatetimeLocal(ns), formatMysqlDatetimeLocal(ne), newToken, id],
           );
