@@ -50,7 +50,7 @@ PORT=3000
 From the project root:
 
 ```bash
-mysql -u -p root < server/sql/schema.sql
+mysql -u cs307-user -p < server/sql/schema.sql
 ```
 
 Then enter the password provided by IT.
